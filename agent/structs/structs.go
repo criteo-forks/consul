@@ -364,6 +364,17 @@ type Node struct {
 }
 type Nodes []*Node
 
+// IsSame return whether nodes are similar without taking into account
+// RaftIndex fields.
+func (n *Node) IsSame(other *Node) bool {
+	return n.ID == other.ID &&
+		n.Node == other.Node &&
+		n.Address == other.Address &&
+		n.Datacenter == other.Datacenter &&
+		reflect.DeepEqual(n.TaggedAddresses, other.TaggedAddresses) &&
+		reflect.DeepEqual(n.Meta, other.Meta)
+}
+
 // ValidateMeta validates a set of key/value pairs from the agent config
 func ValidateMetadata(meta map[string]string, allowConsulPrefix bool) error {
 	if len(meta) > metaMaxKeyPairs {
@@ -623,6 +634,30 @@ func (s *NodeService) IsSame(other *NodeService) bool {
 		s.Kind != other.Kind ||
 		s.ProxyDestination != other.ProxyDestination ||
 		s.Connect != other.Connect {
+		return false
+	}
+
+	return true
+}
+
+// IsSame checks if one ServiceNode is the same as another, without looking
+// at the Raft information (that's why we didn't call it IsEqual). This is
+// useful for seeing if an update would be idempotent for all the functional
+// parts of the structure.
+func (s *ServiceNode) IsSame(other *ServiceNode) bool {
+	if s.ID != other.ID ||
+		s.Node != other.Node ||
+		s.ServiceKind != other.ServiceKind ||
+		s.ServiceID != other.ServiceID ||
+		s.ServiceName != other.ServiceName ||
+		!reflect.DeepEqual(s.ServiceTags, other.ServiceTags) ||
+		s.ServiceAddress != other.ServiceAddress ||
+		s.ServicePort != other.ServicePort ||
+		!reflect.DeepEqual(s.ServiceMeta, other.ServiceMeta) ||
+		!reflect.DeepEqual(s.ServiceWeights, other.ServiceWeights) ||
+		s.ServiceEnableTagOverride != other.ServiceEnableTagOverride ||
+		s.ServiceProxyDestination != other.ServiceProxyDestination ||
+		s.ServiceConnect != other.ServiceConnect {
 		return false
 	}
 
