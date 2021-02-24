@@ -3124,6 +3124,10 @@ func (a *Agent) loadServices(conf *config.RuntimeConfig, snap map[structs.CheckI
 		// Remove sidecar from NodeService now it's done it's job it's just a config
 		// syntax sugar and shouldn't be persisted in local or server state.
 		ns.Connect.SidecarService = nil
+		ns.Proxy.LocalServicePort = sidecar.Port
+		ns.Proxy.LocalServiceAddress = sidecar.Address
+		ns.Proxy.DestinationServiceID = sidecar.ID
+		ns.Proxy.DestinationServiceName = sidecar.Service
 
 		sid := ns.CompoundServiceID()
 		err = a.addServiceLocked(&addServiceRequest{
