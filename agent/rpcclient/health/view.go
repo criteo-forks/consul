@@ -67,10 +67,12 @@ type HealthView struct {
 	state            map[string]structs.CheckServiceNode
 	filter           filterEvaluator
 	healthFilterType structs.HealthFilterType
+	knownLeader      bool
 }
 
 // Update implements View
 func (s *HealthView) Update(events []*pbsubscribe.Event) error {
+	s.knownLeader = true
 	for _, event := range events {
 		serviceHealth := event.GetServiceHealth()
 		if serviceHealth == nil {
@@ -206,8 +208,10 @@ func (s *HealthView) Result(index uint64) interface{} {
 	result := structs.IndexedCheckServiceNodes{
 		Nodes: make(structs.CheckServiceNodes, 0, len(s.state)),
 		QueryMeta: structs.QueryMeta{
-			Index:   index,
-			Backend: structs.QueryBackendStreaming,
+			Index:       index,
+			Backend:     structs.QueryBackendStreaming,
+			KnownLeader: s.knownLeader,
+			LastContact: 0,
 		},
 	}
 	for _, node := range s.state {
@@ -219,6 +223,7 @@ func (s *HealthView) Result(index uint64) interface{} {
 }
 
 func (s *HealthView) Reset() {
+	s.knownLeader = false
 	s.state = make(map[string]structs.CheckServiceNode)
 }
 
