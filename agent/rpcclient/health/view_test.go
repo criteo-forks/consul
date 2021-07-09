@@ -114,8 +114,9 @@ func testHealthView_IntegrationWithStore_WithEmptySnapshot(t *testing.T, peerNam
 	empty := &structs.IndexedCheckServiceNodes{
 		Nodes: structs.CheckServiceNodes{},
 		QueryMeta: structs.QueryMeta{
-			Index:   1,
-			Backend: structs.QueryBackendStreaming,
+			Index:       1,
+			Backend:     structs.QueryBackendStreaming,
+			KnownLeader: true,
 		},
 	}
 
@@ -423,6 +424,7 @@ func testHealthView_IntegrationWithStore_WithFullSnapshot(t *testing.T, peerName
 func newExpectedNodesInPeer(peerName string, nodes ...string) *structs.IndexedCheckServiceNodes {
 	result := &structs.IndexedCheckServiceNodes{}
 	result.QueryMeta.Backend = structs.QueryBackendStreaming
+	result.QueryMeta.KnownLeader = true
 	for _, node := range nodes {
 		result.Nodes = append(result.Nodes, structs.CheckServiceNode{
 			Node: &structs.Node{
