@@ -3195,7 +3195,6 @@ func TestAgent_loadServices_sidecar(t *testing.T) {
 
 func testAgent_loadServices_sidecar(t *testing.T, extraHCL string) {
 	t.Helper()
-
 	a := NewTestAgent(t, `
 		service = {
 			id = "rabbitmq"
@@ -3203,7 +3202,14 @@ func testAgent_loadServices_sidecar(t *testing.T, extraHCL string) {
 			port = 5672
 			token = "abc123"
 			connect = {
-				sidecar_service {}
+				sidecar_service {
+					proxy {
+						upstreams {
+							destination_name = "echo"
+							local_bind_port  = 9191
+						}
+					}
+				}
 			}
 		}
 	`+extraHCL)
@@ -3217,6 +3223,11 @@ func testAgent_loadServices_sidecar(t *testing.T, extraHCL string) {
 	if token := a.State.ServiceToken(structs.NewServiceID("rabbitmq-sidecar-proxy", nil)); token != "abc123" {
 		t.Fatalf("bad: %s", token)
 	}
+	//
+	require.Equal(t, sidecarSvc.Port, svc.Proxy.LocalServicePort)
+	require.Equal(t, sidecarSvc.Address, svc.Proxy.LocalServiceAddress)
+	require.Equal(t, sidecarSvc.ID, svc.Proxy.DestinationServiceID)
+	require.Equal(t, sidecarSvc.Service, svc.Proxy.DestinationServiceName)
 
 	// Verify default checks have been added
 	wantChecks := sidecarDefaultChecks(sidecarSvc.ID, sidecarSvc.Address, sidecarSvc.Proxy.LocalServiceAddress, sidecarSvc.Port)
