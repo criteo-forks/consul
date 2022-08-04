@@ -1188,6 +1188,12 @@ func (s *HTTPHandlers) AgentRegisterService(resp http.ResponseWriter, req *http.
 		// persist it in the actual state/catalog. SidecarService is meant to be a
 		// registration syntax sugar so don't propagate it any further.
 		ns.Connect.SidecarService = nil
+		if sidecar != nil {
+		   ns.Proxy.LocalServicePort = sidecar.Port
+		   ns.Proxy.LocalServiceAddress = sidecar.Address
+		   ns.Proxy.DestinationServiceID = sidecar.ID
+		   ns.Proxy.DestinationServiceName = sidecar.Service
+		}
 	}
 
 	// Add the service.
