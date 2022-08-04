@@ -1266,18 +1266,6 @@ func (s *HTTPHandlers) AgentRegisterService(resp http.ResponseWriter, req *http.
 		replaceExistingChecks = true
 	}
 
-	addReq := AddServiceRequest{
-		Service:               ns,
-		chkTypes:              chkTypes,
-		persist:               true,
-		token:                 token,
-		Source:                ConfigSourceRemote,
-		replaceExistingChecks: replaceExistingChecks,
-	}
-	if err := s.agent.AddService(addReq); err != nil {
-		return nil, err
-	}
-
 	if sidecar != nil {
 		addReq := AddServiceRequest{
 			Service:               sidecar,
@@ -1290,7 +1278,25 @@ func (s *HTTPHandlers) AgentRegisterService(resp http.ResponseWriter, req *http.
 		if err := s.agent.AddService(addReq); err != nil {
 			return nil, err
 		}
+
+		ns.Proxy.LocalServicePort = sidecar.Port
+		ns.Proxy.LocalServiceAddress = sidecar.Address
+		ns.Proxy.DestinationServiceID = sidecar.ID
+		ns.Proxy.DestinationServiceName = sidecar.Service
 	}
+
+	addReq := AddServiceRequest{
+		Service:               ns,
+		chkTypes:              chkTypes,
+		persist:               true,
+		token:                 token,
+		Source:                ConfigSourceRemote,
+		replaceExistingChecks: replaceExistingChecks,
+	}
+	if err := s.agent.AddService(addReq); err != nil {
+		return nil, err
+	}
+
 	s.syncChanges()
 	return nil, nil
 }
