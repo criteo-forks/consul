@@ -195,6 +195,67 @@ func TestAgent_sidecarServiceFromNodeService(t *testing.T) {
 			token:   "foo",
 			wantErr: "reserved for internal use",
 		},
+		{
+			name: "connect weights override",
+			sd: &structs.ServiceDefinition{
+				ID:   "web1",
+				Name: "web",
+				Port: 1111,
+				Connect: &structs.ServiceConnect{
+					SidecarService: &structs.ServiceDefinition{
+						Port:    2222,
+						Weights: &structs.Weights{Passing: 22, Warning: 12},
+					},
+				},
+				Weights: &structs.Weights{Passing: 21, Warning: 11},
+			},
+			wantNS: &structs.NodeService{
+				EnterpriseMeta:             *structs.DefaultEnterpriseMetaInDefaultPartition(),
+				Kind:                       structs.ServiceKindConnectProxy,
+				ID:                         "web1-sidecar-proxy",
+				Service:                    "web-sidecar-proxy",
+				Port:                       2222,
+				LocallyRegisteredAsSidecar: true,
+				Weights:                    &structs.Weights{Passing: 22, Warning: 12},
+				Proxy: structs.ConnectProxyConfig{
+					DestinationServiceName: "web",
+					DestinationServiceID:   "web1",
+					LocalServiceAddress:    "127.0.0.1",
+					LocalServicePort:       1111,
+				},
+			},
+			wantChecks: nil,
+		},
+		{
+			name: "connect weights from service",
+			sd: &structs.ServiceDefinition{
+				ID:   "web1",
+				Name: "web",
+				Port: 1111,
+				Connect: &structs.ServiceConnect{
+					SidecarService: &structs.ServiceDefinition{
+						Port: 2222,
+					},
+				},
+				Weights: &structs.Weights{Passing: 21, Warning: 11},
+			},
+			wantNS: &structs.NodeService{
+				EnterpriseMeta:             *structs.DefaultEnterpriseMetaInDefaultPartition(),
+				Kind:                       structs.ServiceKindConnectProxy,
+				ID:                         "web1-sidecar-proxy",
+				Service:                    "web-sidecar-proxy",
+				Port:                       2222,
+				LocallyRegisteredAsSidecar: true,
+				Weights:                    &structs.Weights{Passing: 21, Warning: 11},
+				Proxy: structs.ConnectProxyConfig{
+					DestinationServiceName: "web",
+					DestinationServiceID:   "web1",
+					LocalServiceAddress:    "127.0.0.1",
+					LocalServicePort:       1111,
+				},
+			},
+			wantChecks: nil,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

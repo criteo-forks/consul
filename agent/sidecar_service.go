@@ -122,6 +122,12 @@ func sidecarServiceFromNodeService(ns *structs.NodeService, token string) (*stru
 		}
 	}
 
+	// Copy service weights if sidecar weights not already defined
+	// .i.e. defined means different from default one
+	if (sidecar.Weights == nil || sidecar.Weights.Passing == 1 && sidecar.Weights.Warning == 1) && ns.Weights != nil {
+		sidecar.Weights = ns.Weights
+	}
+	
 	// Setup checks
 	checks, err := ns.Connect.SidecarService.CheckTypes()
 	if err != nil {
