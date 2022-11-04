@@ -92,7 +92,7 @@ jobs:
           go-version: ${{ matrix.go }}
 
       - name: Setup with node and yarn
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-version: '14'
           cache: 'yarn'
@@ -185,7 +185,7 @@ jobs:
           go-version: ${{ matrix.go }}
 
       - name: Setup with node and yarn
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-version: '14'
           cache: 'yarn'
