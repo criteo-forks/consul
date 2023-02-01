@@ -24,7 +24,7 @@ require (
 	github.com/go-openapi/runtime v0.24.1
 	github.com/go-openapi/strfmt v0.21.3
 	github.com/golang/protobuf v1.5.0
-	github.com/google/go-cmp v0.5.8
+	github.com/google/go-cmp v0.5.9
 	github.com/google/gofuzz v1.2.0
 	github.com/google/pprof v0.0.0-20210601050228-01bbb1931b22
 	github.com/google/tcpproxy v0.0.0-20180808230851-dfa16c61dad2
@@ -76,15 +76,15 @@ require (
 	github.com/prometheus/client_golang v1.4.0
 	github.com/rboyer/safeio v0.2.1
 	github.com/ryanuber/columnize v2.1.2+incompatible
-	github.com/shirou/gopsutil/v3 v3.22.8
-	github.com/stretchr/testify v1.8.0
+	github.com/shirou/gopsutil/v3 v3.23.1
+	github.com/stretchr/testify v1.8.1
 	go.etcd.io/bbolt v1.3.5
 	go.uber.org/goleak v1.1.10
 	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d
 	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd
 	golang.org/x/oauth2 v0.0.0-20201109201403-9fd604954f58
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/sys v0.0.0-20220728004956-3c1f35247d10
+	golang.org/x/sys v0.4.0
 	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e
 	google.golang.org/genproto v0.0.0-20200825200019-8632dd797987
 	google.golang.org/grpc v1.37.1
@@ -191,10 +191,10 @@ require (
 	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966 // indirect
 	github.com/softlayer/softlayer-go v0.0.0-20180806151055-260589d94c7d // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/stretchr/objx v0.4.0 // indirect
+	github.com/stretchr/objx v0.5.0 // indirect
 	github.com/tencentcloud/tencentcloud-sdk-go v1.0.162 // indirect
-	github.com/tklauser/go-sysconf v0.3.10 // indirect
-	github.com/tklauser/numcpus v0.4.0 // indirect
+	github.com/tklauser/go-sysconf v0.3.11 // indirect
+	github.com/tklauser/numcpus v0.6.0 // indirect
 	github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926 // indirect
 	github.com/vmware/govmomi v0.18.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect
