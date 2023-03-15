@@ -479,6 +479,9 @@ func (a *ACL) TokenClone(args *structs.ACLTokenSetRequest, reply *structs.ACLTok
 	updated, err := a.srv.aclTokenWriter().Create(clone, false)
 	if err == nil {
 		*reply = *updated
+		a.logger.Named("audit").Warn("Token clone", "accessorID", authz.AccessorID(),
+			"sourceTokenID", token.AccessorID, "newTokenID", updated.AccessorID,
+			"tokenDescription", token.Description, "policies", token.Policies, "roles", token.Roles)
 	}
 	return err
 }
@@ -507,7 +510,8 @@ func (a *ACL) TokenSet(args *structs.ACLTokenSetRequest, reply *structs.ACLToken
 
 	// Verify token is permitted to modify ACLs
 	var authzContext acl.AuthorizerContext
-	if authz, err := a.srv.ResolveTokenAndDefaultMeta(args.Token, &args.ACLToken.EnterpriseMeta, &authzContext); err != nil {
+	authz, err := a.srv.ResolveTokenAndDefaultMeta(args.Token, &args.ACLToken.EnterpriseMeta, &authzContext)
+	if err != nil {
 		return err
 	} else if err := authz.ToAllowAuthorizer().ACLWriteAllowed(&authzContext); err != nil {
 		return err
@@ -515,7 +519,6 @@ func (a *ACL) TokenSet(args *structs.ACLTokenSetRequest, reply *structs.ACLToken
 
 	var (
 		updated *structs.ACLToken
-		err     error
 	)
 	writer := a.srv.aclTokenWriter()
 	if args.ACLToken.AccessorID == "" || args.Create {
@@ -523,9 +526,16 @@ func (a *ACL) TokenSet(args *structs.ACLTokenSetRequest, reply *structs.ACLToken
 	} else {
 		updated, err = writer.Update(&args.ACLToken)
 	}
-
 	if err == nil {
 		*reply = *updated
+		actionStr := "Token updated"
+		if args.Create {
+			actionStr = "Token created"
+		}
+		a.logger.Named("audit").Warn(actionStr, "accessorID", authz.AccessorID(),
+			"tokenID", reply.AccessorID, "tokenDescription", reply.Description,
+			"policies", reply.Policies, "roles", reply.Roles)
+
 	}
 	return err
 }
@@ -551,7 +561,8 @@ func (a *ACL) TokenDelete(args *structs.ACLTokenDeleteRequest, reply *string) er
 
 	// Verify token is permitted to modify ACLs
 	var authzContext acl.AuthorizerContext
-	if authz, err := a.srv.ResolveTokenAndDefaultMeta(args.Token, &args.EnterpriseMeta, &authzContext); err != nil {
+	authz, err := a.srv.ResolveTokenAndDefaultMeta(args.Token, &args.EnterpriseMeta, &authzContext)
+	if err != nil {
 		return err
 	} else if err := authz.ToAllowAuthorizer().ACLWriteAllowed(&authzContext); err != nil {
 		return err
@@ -607,6 +618,9 @@ func (a *ACL) TokenDelete(args *structs.ACLTokenDeleteRequest, reply *string) er
 	if reply != nil {
 		*reply = token.AccessorID
 	}
+
+	a.logger.Named("audit").Warn("Token deleted", "accessorID", authz.AccessorID(),
+		"tokenAccessorID", token.AccessorID, "tokenDescription", token.Description)
 
 	return nil
 }
@@ -827,8 +841,8 @@ func (a *ACL) PolicySet(args *structs.ACLPolicySetRequest, reply *structs.ACLPol
 
 	// Verify token is permitted to modify ACLs
 	var authzContext acl.AuthorizerContext
-
-	if authz, err := a.srv.ResolveTokenAndDefaultMeta(args.Token, &args.Policy.EnterpriseMeta, &authzContext); err != nil {
+	authz, err := a.srv.ResolveTokenAndDefaultMeta(args.Token, &args.Policy.EnterpriseMeta, &authzContext)
+	if err != nil {
 		return err
 	} else if err := authz.ToAllowAuthorizer().ACLWriteAllowed(&authzContext); err != nil {
 		return err
@@ -852,7 +866,6 @@ func (a *ACL) PolicySet(args *structs.ACLPolicySetRequest, reply *structs.ACLPol
 
 	var idMatch *structs.ACLPolicy
 	var nameMatch *structs.ACLPolicy
-	var err error
 
 	if policy.ID != "" {
 		if _, err := uuid.ParseUUID(policy.ID); err != nil {
@@ -932,7 +945,8 @@ func (a *ACL) PolicySet(args *structs.ACLPolicySetRequest, reply *structs.ACLPol
 	if _, policy, err := a.srv.fsm.State().ACLPolicyGetByID(nil, policy.ID, &policy.EnterpriseMeta); err == nil && policy != nil {
 		*reply = *policy
 	}
-
+	a.logger.Named("audit").Warn("Policy created", "accessorID", authz.AccessorID(),
+		"policyID", policy.ID, "policyName", policy.Name, "policyRules", policy.Rules)
 	return nil
 }
 
@@ -958,7 +972,8 @@ func (a *ACL) PolicyDelete(args *structs.ACLPolicyDeleteRequest, reply *string) 
 	// Verify token is permitted to modify ACLs
 	var authzContext acl.AuthorizerContext
 
-	if authz, err := a.srv.ResolveTokenAndDefaultMeta(args.Token, &args.EnterpriseMeta, &authzContext); err != nil {
+	authz, err := a.srv.ResolveTokenAndDefaultMeta(args.Token, &args.EnterpriseMeta, &authzContext)
+	if err != nil {
 		return err
 	} else if err := authz.ToAllowAuthorizer().ACLWriteAllowed(&authzContext); err != nil {
 		return err
@@ -989,6 +1004,9 @@ func (a *ACL) PolicyDelete(args *structs.ACLPolicyDeleteRequest, reply *string) 
 	a.srv.ACLResolver.cache.RemovePolicy(policy.ID)
 
 	*reply = policy.Name
+
+	a.logger.Named("audit").Warn("Policy deleted", "accessorID", authz.AccessorID(),
+		"policyID", policy.ID, "policyName", policy.Name, "policyRules", policy.Rules)
 
 	return nil
 }
@@ -1214,7 +1232,8 @@ func (a *ACL) RoleSet(args *structs.ACLRoleSetRequest, reply *structs.ACLRole) e
 	// Verify token is permitted to modify ACLs
 	var authzContext acl.AuthorizerContext
 
-	if authz, err := a.srv.ResolveTokenAndDefaultMeta(args.Token, &args.Role.EnterpriseMeta, &authzContext); err != nil {
+	authz, err := a.srv.ResolveTokenAndDefaultMeta(args.Token, &args.Role.EnterpriseMeta, &authzContext)
+	if err != nil {
 		return err
 	} else if err := authz.ToAllowAuthorizer().ACLWriteAllowed(&authzContext); err != nil {
 		return err
@@ -1237,7 +1256,6 @@ func (a *ACL) RoleSet(args *structs.ACLRoleSetRequest, reply *structs.ACLRole) e
 	}
 
 	var existing *structs.ACLRole
-	var err error
 	if role.ID == "" {
 		// with no role ID one will be generated
 		role.ID, err = lib.GenerateUUID(a.srv.checkRoleUUID)
@@ -1347,6 +1365,9 @@ func (a *ACL) RoleSet(args *structs.ACLRoleSetRequest, reply *structs.ACLRole) e
 		*reply = *role
 	}
 
+	a.logger.Named("audit").Warn("Role created", "accessorID", authz.AccessorID(),
+		"roleID", role.ID, "roleName", role.Name, "roleDescription", role.Description, "rolePolicies", role.Policies)
+
 	return nil
 }
 
@@ -1372,7 +1393,8 @@ func (a *ACL) RoleDelete(args *structs.ACLRoleDeleteRequest, reply *string) erro
 	// Verify token is permitted to modify ACLs
 	var authzContext acl.AuthorizerContext
 
-	if authz, err := a.srv.ResolveTokenAndDefaultMeta(args.Token, &args.EnterpriseMeta, &authzContext); err != nil {
+	authz, err := a.srv.ResolveTokenAndDefaultMeta(args.Token, &args.EnterpriseMeta, &authzContext)
+	if err != nil {
 		return err
 	} else if err := authz.ToAllowAuthorizer().ACLWriteAllowed(&authzContext); err != nil {
 		return err
@@ -1399,6 +1421,9 @@ func (a *ACL) RoleDelete(args *structs.ACLRoleDeleteRequest, reply *string) erro
 	a.srv.ACLResolver.cache.RemoveRole(role.ID)
 
 	*reply = role.Name
+
+	a.logger.Named("audit").Warn("Role deleted", "accessorID", authz.AccessorID(),
+		"roleID", role.ID, "roleName", role.Name, "roleDescription", role.Description, "rolePolicies", role.Policies)
 
 	return nil
 }
