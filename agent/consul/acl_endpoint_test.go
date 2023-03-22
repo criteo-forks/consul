@@ -165,7 +165,7 @@ func TestACLEndpoint_TokenRead(t *testing.T) {
 
 	waitForLeaderEstablishment(t, srv)
 
-	aclEp := ACL{srv: srv}
+	aclEp := ACL{srv: srv, logger: testutil.Logger(t)}
 
 	t.Run("exists and matches what we created", func(t *testing.T) {
 		token, err := upsertTestToken(codec, TestDefaultInitialManagementToken, "dc1", nil)
@@ -497,7 +497,7 @@ func TestACLEndpoint_TokenClone(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	endpoint := ACL{srv: srv}
+	endpoint := ACL{srv: srv, logger: testutil.Logger(t)}
 
 	t.Run("normal", func(t *testing.T) {
 		req := structs.ACLTokenSetRequest{
@@ -558,7 +558,7 @@ func TestACLEndpoint_TokenSet(t *testing.T) {
 	}, false)
 	waitForLeaderEstablishment(t, srv)
 
-	a := ACL{srv: srv}
+	a := ACL{srv: srv, logger: testutil.Logger(t)}
 
 	var accessorID string
 
@@ -753,7 +753,7 @@ func TestACLEndpoint_TokenSet(t *testing.T) {
 	})
 
 	t.Run("Update auth method linked token and try to change auth method", func(t *testing.T) {
-		aclEp := ACL{srv: srv}
+		aclEp := ACL{srv: srv, logger: testutil.Logger(t)}
 
 		testSessionID := testauth.StartSession()
 		defer testauth.ResetSession(testSessionID)
@@ -798,7 +798,7 @@ func TestACLEndpoint_TokenSet(t *testing.T) {
 	})
 
 	t.Run("Update auth method linked token and let the SecretID and AuthMethod be defaulted", func(t *testing.T) {
-		aclEp := ACL{srv: srv}
+		aclEp := ACL{srv: srv, logger: testutil.Logger(t)}
 
 		testSessionID := testauth.StartSession()
 		defer testauth.ResetSession(testSessionID)
@@ -1341,7 +1341,7 @@ func TestACLEndpoint_TokenSet_CustomID(t *testing.T) {
 	_, srv, codec := testACLServerWithConfig(t, nil, false)
 	waitForLeaderEstablishment(t, srv)
 
-	aclEp := ACL{srv: srv}
+	aclEp := ACL{srv: srv, logger: testutil.Logger(t)}
 
 	// No Create Arg
 	t.Run("no create arg", func(t *testing.T) {
@@ -1610,7 +1610,7 @@ func TestACLEndpoint_TokenSet_anon(t *testing.T) {
 	policy, err := upsertTestPolicy(codec, TestDefaultInitialManagementToken, "dc1")
 	require.NoError(t, err)
 
-	aclEp := ACL{srv: srv}
+	aclEp := ACL{srv: srv, logger: testutil.Logger(t)}
 
 	// Assign the policies to a token
 	tokenUpsertReq := structs.ACLTokenSetRequest{
@@ -1666,8 +1666,8 @@ func TestACLEndpoint_TokenDelete(t *testing.T) {
 	// Ensure s2 is authoritative.
 	waitForNewACLReplication(t, s2, structs.ACLReplicateTokens, 1, 1, 0)
 
-	acl1 := ACL{srv: s1}
-	acl2 := ACL{srv: s2}
+	acl1 := ACL{srv: s1, logger: testutil.Logger(t)}
+	acl2 := ACL{srv: s2, logger: testutil.Logger(t)}
 
 	existingToken, err := upsertTestToken(codec, TestDefaultInitialManagementToken, "dc1", nil)
 	require.NoError(t, err)
@@ -1838,7 +1838,7 @@ func TestACLEndpoint_TokenDelete_anon(t *testing.T) {
 	_, srv, codec := testACLServerWithConfig(t, nil, false)
 	waitForLeaderEstablishment(t, srv)
 
-	aclEp := ACL{srv: srv}
+	aclEp := ACL{srv: srv, logger: testutil.Logger(t)}
 
 	req := structs.ACLTokenDeleteRequest{
 		Datacenter:   "dc1",
@@ -2120,7 +2120,7 @@ func TestACLEndpoint_PolicySet(t *testing.T) {
 
 	_, srv, codec := testACLServerWithConfig(t, nil, false)
 	waitForLeaderEstablishment(t, srv)
-	aclEp := ACL{srv: srv}
+	aclEp := ACL{srv: srv, logger: testutil.Logger(t)}
 
 	var policyID string
 
@@ -2208,7 +2208,7 @@ func TestACLEndpoint_PolicySet_CustomID(t *testing.T) {
 	_, srv, _ := testACLServerWithConfig(t, nil, false)
 	waitForLeaderEstablishment(t, srv)
 
-	aclEp := ACL{srv: srv}
+	aclEp := ACL{srv: srv, logger: testutil.Logger(t)}
 
 	// Attempt to create policy with ID
 	req := structs.ACLPolicySetRequest{
@@ -2237,7 +2237,7 @@ func TestACLEndpoint_TemplatedPolicySet_UnknownTemplateName(t *testing.T) {
 	_, srv, _ := testACLServerWithConfig(t, nil, false)
 	waitForLeaderEstablishment(t, srv)
 
-	aclEp := ACL{srv: srv}
+	aclEp := ACL{srv: srv, logger: testutil.Logger(t)}
 
 	t.Run("unknown template name", func(t *testing.T) {
 		req := structs.ACLTokenSetRequest{
@@ -2270,7 +2270,7 @@ func TestACLEndpoint_PolicySet_builtins(t *testing.T) {
 	_, srv, codec := testACLServerWithConfig(t, nil, false)
 	waitForLeaderEstablishment(t, srv)
 
-	aclEp := ACL{srv: srv}
+	aclEp := ACL{srv: srv, logger: testutil.Logger(t)}
 
 	for _, builtinPolicy := range structs.ACLBuiltinPolicies {
 		name := fmt.Sprintf("foobar-%s", builtinPolicy.Name) // This is required to get past validation
@@ -2332,7 +2332,7 @@ func TestACLEndpoint_PolicyDelete(t *testing.T) {
 	existingPolicy, err := upsertTestPolicy(codec, TestDefaultInitialManagementToken, "dc1")
 	require.NoError(t, err)
 
-	aclEp := ACL{srv: srv}
+	aclEp := ACL{srv: srv, logger: testutil.Logger(t)}
 
 	req := structs.ACLPolicyDeleteRequest{
 		Datacenter:   "dc1",
@@ -2360,7 +2360,7 @@ func TestACLEndpoint_PolicyDelete_builtins(t *testing.T) {
 
 	_, srv, _ := testACLServerWithConfig(t, nil, false)
 	waitForLeaderEstablishment(t, srv)
-	aclEp := ACL{srv: srv}
+	aclEp := ACL{srv: srv, logger: testutil.Logger(t)}
 
 	for _, builtinPolicy := range structs.ACLBuiltinPolicies {
 		req := structs.ACLPolicyDeleteRequest{
@@ -2391,7 +2391,7 @@ func TestACLEndpoint_PolicyList(t *testing.T) {
 	p2, err := upsertTestPolicy(codec, TestDefaultInitialManagementToken, "dc1")
 	require.NoError(t, err)
 
-	aclEp := ACL{srv: srv}
+	aclEp := ACL{srv: srv, logger: testutil.Logger(t)}
 
 	req := structs.ACLPolicyListRequest{
 		Datacenter:   "dc1",
@@ -2428,7 +2428,7 @@ func TestACLEndpoint_PolicyResolve(t *testing.T) {
 	p2, err := upsertTestPolicy(codec, TestDefaultInitialManagementToken, "dc1")
 	require.NoError(t, err)
 
-	aclEp := ACL{srv: srv}
+	aclEp := ACL{srv: srv, logger: testutil.Logger(t)}
 
 	policies := []string{p1.ID, p2.ID}
 
@@ -2532,7 +2532,7 @@ func TestACLEndpoint_RoleSet(t *testing.T) {
 	_, srv, codec := testACLServerWithConfig(t, nil, false)
 	waitForLeaderEstablishment(t, srv)
 
-	a := ACL{srv: srv}
+	a := ACL{srv: srv, logger: testutil.Logger(t)}
 	var roleID string
 
 	testPolicy1, err := upsertTestPolicy(codec, TestDefaultInitialManagementToken, "dc1")
@@ -2894,7 +2894,7 @@ func TestACLEndpoint_RoleSet_names(t *testing.T) {
 	_, srv, codec := testACLServerWithConfig(t, nil, false)
 	waitForLeaderEstablishment(t, srv)
 
-	aclEp := ACL{srv: srv}
+	aclEp := ACL{srv: srv, logger: testutil.Logger(t)}
 	testPolicy1, err := upsertTestPolicy(codec, TestDefaultInitialManagementToken, "dc1")
 
 	require.NoError(t, err)
@@ -2979,7 +2979,7 @@ func TestACLEndpoint_RoleDelete(t *testing.T) {
 
 	require.NoError(t, err)
 
-	aclEp := ACL{srv: srv}
+	aclEp := ACL{srv: srv, logger: testutil.Logger(t)}
 
 	req := structs.ACLRoleDeleteRequest{
 		Datacenter:   "dc1",
@@ -3045,7 +3045,7 @@ func TestACLEndpoint_RoleResolve(t *testing.T) {
 		r2, err := upsertTestRole(codec, TestDefaultInitialManagementToken, "dc1")
 		require.NoError(t, err)
 
-		aclEp := ACL{srv: srv}
+		aclEp := ACL{srv: srv, logger: testutil.Logger(t)}
 
 		// Assign the roles to a token
 		tokenUpsertReq := structs.ACLTokenSetRequest{
@@ -4541,7 +4541,7 @@ func TestACLEndpoint_Login(t *testing.T) {
 	_, srv, codec := testACLServerWithConfig(t, nil, false)
 	waitForLeaderEstablishment(t, srv)
 
-	aclEp := ACL{srv: srv}
+	aclEp := ACL{srv: srv, logger: testutil.Logger(t)}
 
 	testSessionID := testauth.StartSession()
 	defer testauth.ResetSession(testSessionID)
@@ -5034,8 +5034,8 @@ func TestACLEndpoint_Login_with_TokenLocality(t *testing.T) {
 	// Ensure s2 is authoritative.
 	waitForNewACLReplication(t, s2, structs.ACLReplicateTokens, 1, 1, 0)
 
-	acl1 := ACL{srv: s1}
-	acl2 := ACL{srv: s2}
+	acl1 := ACL{srv: s1, logger: testutil.Logger(t)}
+	acl2 := ACL{srv: s2, logger: testutil.Logger(t)}
 
 	testSessionID := testauth.StartSession()
 	defer testauth.ResetSession(testSessionID)
