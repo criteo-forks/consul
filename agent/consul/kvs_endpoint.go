@@ -4,6 +4,7 @@
 package consul
 
 import (
+	"encoding/base64"
 	"fmt"
 	"strings"
 	"time"
@@ -101,15 +102,49 @@ func (k *KVS) Apply(args *structs.KVSRequest, reply *bool) error {
 	if done, err := k.srv.ForwardRPC("KVS.Apply", args, reply); done {
 		return err
 	}
-	defer metrics.MeasureSince([]string{"kvs", "apply"}, time.Now())
+
+	var authz resolver.Result
+	var err error
+	defer func() {
+		var errMsg string
+		if err != nil {
+			errMsg = err.Error()
+		} else {
+			errMsg = "None"
+		}
+
+		switch args.Op {
+		case api.KVDelete, api.KVDeleteCAS:
+			k.logger.Named("audit").Warn("K/V entry deletion",
+				"accessorID", authz.AccessorID(),
+				"error", errMsg,
+				"key", args.DirEnt.Key)
+		case api.KVSet, api.KVCAS:
+			valueStr := base64.StdEncoding.EncodeToString(args.DirEnt.Value)
+			k.logger.Named("audit").Warn("K/V entry set",
+				"accessorID", authz.AccessorID(),
+				"error", errMsg,
+				"key", args.DirEnt.Key, "value", valueStr)
+		default:
+			// Log any other operation which fails
+			if err != nil {
+				k.logger.Named("audit").Warn("K/V operation failure",
+					"accessorID", authz.AccessorID(),
+					"operation", args.Op,
+					"error", errMsg,
+					"key", args.DirEnt.Key)
+			}
+		}
+		metrics.MeasureSince([]string{"kvs", "apply"}, time.Now())
+	}()
 
 	// Perform the pre-apply checks.
-	authz, err := k.srv.ResolveTokenAndDefaultMeta(args.Token, &args.DirEnt.EnterpriseMeta, nil)
+	authz, err = k.srv.ResolveTokenAndDefaultMeta(args.Token, &args.DirEnt.EnterpriseMeta, nil)
 	if err != nil {
 		return err
 	}
 
-	if err := k.srv.validateEnterpriseRequest(&args.DirEnt.EnterpriseMeta, true); err != nil {
+	if err = k.srv.validateEnterpriseRequest(&args.DirEnt.EnterpriseMeta, true); err != nil {
 		return err
 	}
 
@@ -132,6 +167,7 @@ func (k *KVS) Apply(args *structs.KVSRequest, reply *bool) error {
 	if respBool, ok := resp.(bool); ok {
 		*reply = respBool
 	}
+
 	return nil
 }
 
@@ -141,13 +177,33 @@ func (k *KVS) Get(args *structs.KeyRequest, reply *structs.IndexedDirEntries) er
 		return err
 	}
 
+	var authz resolver.Result
+	var err error
+	defer func() {
+		var errMsg string
+		if err != nil {
+			errMsg = err.Error()
+		} else {
+			errMsg = "None"
+		}
+
+		// Log any other operation which fails
+		if err != nil {
+			k.logger.Named("audit").Warn("K/V operation failure",
+				"accessorID", authz.AccessorID(),
+				"operation", api.KVGet,
+				"error", errMsg,
+				"key", args.Key)
+		}
+	}()
+
 	var authzContext acl.AuthorizerContext
-	authz, err := k.srv.ResolveTokenAndDefaultMeta(args.Token, &args.EnterpriseMeta, &authzContext)
+	authz, err = k.srv.ResolveTokenAndDefaultMeta(args.Token, &args.EnterpriseMeta, &authzContext)
 	if err != nil {
 		return err
 	}
 
-	if err := k.srv.validateEnterpriseRequest(&args.EnterpriseMeta, false); err != nil {
+	if err = k.srv.validateEnterpriseRequest(&args.EnterpriseMeta, false); err != nil {
 		return err
 	}
 
@@ -155,11 +211,13 @@ func (k *KVS) Get(args *structs.KeyRequest, reply *structs.IndexedDirEntries) er
 		&args.QueryOptions,
 		&reply.QueryMeta,
 		func(ws memdb.WatchSet, state *state.Store) error {
-			index, ent, err := state.KVSGet(ws, args.Key, &args.EnterpriseMeta)
+			var index uint64
+			var ent *structs.DirEntry
+			index, ent, err = state.KVSGet(ws, args.Key, &args.EnterpriseMeta)
 			if err != nil {
 				return err
 			}
-			if err := authz.ToAllowAuthorizer().KeyReadAllowed(args.Key, &authzContext); err != nil {
+			if err = authz.ToAllowAuthorizer().KeyReadAllowed(args.Key, &authzContext); err != nil {
 				return err
 			}
 
