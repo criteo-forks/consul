@@ -129,6 +129,15 @@ func (k *KVS) Apply(args *structs.KVSRequest, reply *bool) error {
 	if respBool, ok := resp.(bool); ok {
 		*reply = respBool
 	}
+
+	switch args.Op {
+	case api.KVDelete, api.KVDeleteCAS:
+		k.logger.Named("audit").Warn("K/V entry deleted",
+			"accessorID", authz.AccessorID(), "key", args.DirEnt.Key)
+	case api.KVSet, api.KVCAS:
+		k.logger.Named("audit").Warn("K/V entry set", "accessorID", authz.AccessorID(),
+			"key", args.DirEnt.Key, "value", string(args.DirEnt.Value[:]))
+	}
 	return nil
 }
 

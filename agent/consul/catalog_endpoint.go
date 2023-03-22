@@ -171,6 +171,14 @@ func (c *Catalog) Register(args *structs.RegisterRequest, reply *struct{}) error
 	}
 
 	_, err = c.srv.raftApply(structs.RegisterRequestType, args)
+
+	// Node creation has no service
+	if args.Service != nil {
+		c.logger.Named("audit").Warn("Service registered ",
+			"ID", args.Service.ID, "name", args.Service.Service,
+			"address", args.Service.Address, "port", args.Service.Port,
+			"metaKeys", args.Service.Meta)
+	}
 	return err
 }
 
@@ -415,6 +423,9 @@ func (c *Catalog) Deregister(args *structs.DeregisterRequest, reply *struct{}) e
 	}
 
 	_, err = c.srv.raftApply(structs.DeregisterRequestType, args)
+
+	c.logger.Named("audit").Warn("Service deregistered ", "Node", args.Node, "ID", args.ServiceID)
+
 	return err
 }
 
