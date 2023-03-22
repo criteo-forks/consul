@@ -112,15 +112,28 @@ func (c *Catalog) Register(args *structs.RegisterRequest, reply *struct{}) error
 	if done, err := c.srv.ForwardRPC("Catalog.Register", args, reply); done {
 		return err
 	}
-	defer metrics.MeasureSince([]string{"catalog", "register"}, time.Now())
+	var authz resolver.Result
+	var err error
+	defer func() {
+		if args.Service != nil {
+			c.logger.Named("audit").Warn("Service registration",
+				"accessorID", accessorIdToAuditMsg(authz.AccessorID()),
+				"error", errorToAuditMsg(err),
+				"ID", args.Service.ID, "name", args.Service.Service,
+				"NodeID", args.Node,
+				"address", args.Service.Address, "port", args.Service.Port,
+				"metaKeys", args.Service.Meta)
+		}
+		metrics.MeasureSince([]string{"catalog", "register"}, time.Now())
+	}()
 
 	// Fetch the ACL token, if any.
-	authz, err := c.srv.ResolveTokenAndDefaultMeta(args.Token, &args.EnterpriseMeta, nil)
+	authz, err = c.srv.ResolveTokenAndDefaultMeta(args.Token, &args.EnterpriseMeta, nil)
 	if err != nil {
 		return err
 	}
 
-	if err := c.srv.validateEnterpriseRequest(args.GetEnterpriseMeta(), true); err != nil {
+	if err = c.srv.validateEnterpriseRequest(args.GetEnterpriseMeta(), true); err != nil {
 		return err
 	}
 
@@ -133,7 +146,7 @@ func (c *Catalog) Register(args *structs.RegisterRequest, reply *struct{}) error
 	}
 
 	// Verify the args.
-	if err := nodePreApply(args.Node, string(args.ID)); err != nil {
+	if err = nodePreApply(args.Node, string(args.ID)); err != nil {
 		return err
 	}
 	if args.Address == "" && !args.SkipNodeUpdate {
@@ -142,7 +155,7 @@ func (c *Catalog) Register(args *structs.RegisterRequest, reply *struct{}) error
 
 	// Handle a service registration.
 	if args.Service != nil {
-		if err := servicePreApply(args.Service, authz, args.Service.FillAuthzContext); err != nil {
+		if err = servicePreApply(args.Service, authz, args.Service.FillAuthzContext); err != nil {
 			return err
 		}
 	}
@@ -171,11 +184,12 @@ func (c *Catalog) Register(args *structs.RegisterRequest, reply *struct{}) error
 	if err != nil {
 		return fmt.Errorf("Node lookup failed: %v", err)
 	}
-	if err := vetRegisterWithACL(authz, args, ns); err != nil {
+	if err = vetRegisterWithACL(authz, args, ns); err != nil {
 		return err
 	}
 
 	_, err = c.srv.raftApply(structs.RegisterRequestType, args)
+
 	return err
 }
 
@@ -383,7 +397,16 @@ func (c *Catalog) Deregister(args *structs.DeregisterRequest, reply *struct{}) e
 	if done, err := c.srv.ForwardRPC("Catalog.Deregister", args, reply); done {
 		return err
 	}
-	defer metrics.MeasureSince([]string{"catalog", "deregister"}, time.Now())
+	var authz resolver.Result
+	var err error
+	defer func() {
+		c.logger.Named("audit").Warn("Catalog deregistration",
+			"accessorID", accessorIdToAuditMsg(authz.AccessorID()),
+			"error", errorToAuditMsg(err),
+			"NodeID", args.Node, "ServiceID", args.ServiceID)
+
+		metrics.MeasureSince([]string{"catalog", "deregister"}, time.Now())
+	}()
 
 	// Verify the args
 	if args.Node == "" {
@@ -391,12 +414,12 @@ func (c *Catalog) Deregister(args *structs.DeregisterRequest, reply *struct{}) e
 	}
 
 	// Fetch the ACL token, if any.
-	authz, err := c.srv.ResolveTokenAndDefaultMeta(args.Token, &args.EnterpriseMeta, nil)
+	authz, err = c.srv.ResolveTokenAndDefaultMeta(args.Token, &args.EnterpriseMeta, nil)
 	if err != nil {
 		return err
 	}
 
-	if err := c.srv.validateEnterpriseRequest(&args.EnterpriseMeta, true); err != nil {
+	if err = c.srv.validateEnterpriseRequest(&args.EnterpriseMeta, true); err != nil {
 		return err
 	}
 
@@ -419,11 +442,12 @@ func (c *Catalog) Deregister(args *structs.DeregisterRequest, reply *struct{}) e
 		}
 	}
 
-	if err := vetDeregisterWithACL(authz, args, ns, nc); err != nil {
+	if err = vetDeregisterWithACL(authz, args, ns, nc); err != nil {
 		return err
 	}
 
 	_, err = c.srv.raftApply(structs.DeregisterRequestType, args)
+
 	return err
 }
 
