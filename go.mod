@@ -11,7 +11,7 @@ replace launchpad.net/gocheck => github.com/go-check/check v0.0.0-20140225173054
 require (
 	cloud.google.com/go v0.59.0 // indirect
 	github.com/Microsoft/go-winio v0.4.3 // indirect
-	github.com/NYTimes/gziphandler v1.0.1
+	github.com/NYTimes/gziphandler v1.1.1
 	github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e
 	github.com/armon/go-metrics v0.3.10
 	github.com/armon/go-radix v1.0.0
