@@ -375,6 +375,31 @@ func (p *PreparedQuery) Execute(args *structs.PreparedQueryExecuteRequest,
 		return structs.ErrQueryNotFound
 	}
 
+	// Skip local datacenter query if requested
+	if query.Service.Failover.SkipLocalDatacenter == false {
+		if err := queryLocally(p, args, query, reply); err != nil {
+			return err
+		}
+	}
+
+	// In the happy path where we found some healthy nodes we go with that
+	// and bail out. Otherwise, we fail over and try remote DCs, as allowed
+	// by the query setup.
+	if len(reply.Nodes) == 0 {
+		wrapper := &queryServerWrapper{srv: p.srv, executeRemote: p.ExecuteRemote}
+		if err := queryFailover(p, wrapper, *query, args, reply); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func queryLocally(p *PreparedQuery,
+	args *structs.PreparedQueryExecuteRequest,
+	query *structs.PreparedQuery,
+	reply *structs.PreparedQueryExecuteResponse) error {
+
 	// If we have a sameness group, it controls the initial query and
 	// subsequent failover if required (Enterprise Only)
 	if query.Service.SamenessGroup != "" {
@@ -419,7 +444,7 @@ func (p *PreparedQuery) Execute(args *structs.PreparedQueryExecuteRequest,
 		if query.Service.Near != "" && qs.Node == "" {
 			qs.Node = query.Service.Near
 		}
-
+		state := p.srv.fsm.State()
 		// Respect the magic "_agent" flag.
 		if qs.Node == "_agent" {
 			qs.Node = args.Agent.Node
@@ -451,7 +476,7 @@ func (p *PreparedQuery) Execute(args *structs.PreparedQueryExecuteRequest,
 		}
 
 		// Perform the distance sort
-		err = p.srv.sortNodesByDistanceFrom(qs, reply.Nodes)
+		err := p.srv.sortNodesByDistanceFrom(qs, reply.Nodes)
 		if err != nil {
 			return err
 		}
@@ -476,16 +501,6 @@ func (p *PreparedQuery) Execute(args *structs.PreparedQueryExecuteRequest,
 		// Apply the limit if given.
 		if args.Limit > 0 && len(reply.Nodes) > args.Limit {
 			reply.Nodes = reply.Nodes[:args.Limit]
-		}
-
-		// In the happy path where we found some healthy nodes we go with that
-		// and bail out. Otherwise, we fail over and try remote DCs, as allowed
-		// by the query setup.
-		if len(reply.Nodes) == 0 {
-			wrapper := newQueryServerWrapper(p.srv, p.ExecuteRemote)
-			if err := queryFailover(wrapper, *query, args, reply); err != nil {
-				return err
-			}
 		}
 	}
 
@@ -741,7 +756,8 @@ func (q *queryServerWrapper) GetOtherDatacentersByDistance() ([]string, error) {
 
 // queryFailover runs an algorithm to determine which DCs to try and then calls
 // them to try to locate alternative services.
-func queryFailover(q queryServer, query structs.PreparedQuery,
+func queryFailover(p *PreparedQuery,
+	q queryServer, query structs.PreparedQuery,
 	args *structs.PreparedQueryExecuteRequest,
 	reply *structs.PreparedQueryExecuteResponse) error {
 
@@ -779,8 +795,10 @@ func queryFailover(q queryServer, query structs.PreparedQuery,
 		// attempt to talk to datacenters we don't know about.
 		if dc := target.Datacenter; dc != "" {
 			if _, ok := known[dc]; !ok {
-				q.GetLogger().Debug("Skipping unknown datacenter in prepared query", "datacenter", dc)
-				continue
+				if query.Service.Failover.SkipLocalDatacenter == false || dc != p.srv.config.Datacenter {
+					q.GetLogger().Debug("Skipping unknown datacenter in prepared query", "datacenter", dc)
+					continue
+				}
 			}
 
 			// This will make sure we don't re-try something that fails
@@ -802,7 +820,7 @@ func queryFailover(q queryServer, query structs.PreparedQuery,
 		// This keeps track of how many iterations we actually run.
 		failovers++
 
-		err = targetSelector(q, query, args, target, reply)
+		err = targetSelector(p, q, query, args, target, reply)
 		if err != nil {
 			continue
 		}
@@ -820,7 +838,8 @@ func queryFailover(q queryServer, query structs.PreparedQuery,
 	return nil
 }
 
-func targetSelector(q queryServer,
+func targetSelector(p *PreparedQuery,
+	q queryServer,
 	query structs.PreparedQuery,
 	args *structs.PreparedQueryExecuteRequest,
 	target structs.QueryFailoverTarget,
@@ -842,29 +861,36 @@ func targetSelector(q queryServer,
 		dc = q.GetLocalDC()
 	}
 
-	// Note that we pass along the limit since may be applied
-	// remotely to save bandwidth. We also pass along the consistency
-	// mode information and token we were given, so that applies to
-	// the remote query as well.
-	remote := &structs.PreparedQueryExecuteRemoteRequest{
-		Datacenter:   dc,
-		Query:        query,
-		Limit:        args.Limit,
-		QueryOptions: args.QueryOptions,
-		Connect:      args.Connect,
-	}
+	if query.Service.Failover.SkipLocalDatacenter == true && dc == p.srv.config.Datacenter {
+		if err := queryLocally(p, args, &query, reply); err != nil {
+			q.GetLogger().Warn("[WARN] consul.prepared_query: Failed querying for service "+
+				"'%s' in local datacenter: %s", query.Service.Service, err)
+			return err
+		}
+	} else {
+		// Note that we pass along the limit since may be applied
+		// remotely to save bandwidth. We also pass along the consistency
+		// mode information and token we were given, so that applies to
+		// the remote query as well.
+		remote := &structs.PreparedQueryExecuteRemoteRequest{
+			Datacenter:   dc,
+			Query:        query,
+			Limit:        args.Limit,
+			QueryOptions: args.QueryOptions,
+			Connect:      args.Connect,
+		}
 
-	var err error
-	if err = q.ExecuteRemote(remote, reply); err != nil {
-		q.GetLogger().Warn("Failed querying for service in datacenter",
-			"service", query.Service.Service,
-			"peerName", query.Service.Peer,
-			"datacenter", dc,
-			"enterpriseMeta", query.Service.EnterpriseMeta,
-			"error", err,
-		)
-		return err
+		var err error
+		if err = q.ExecuteRemote(remote, reply); err != nil {
+			q.GetLogger().Warn("Failed querying for service in datacenter",
+				"service", query.Service.Service,
+				"peerName", query.Service.Peer,
+				"datacenter", dc,
+				"enterpriseMeta", query.Service.EnterpriseMeta,
+				"error", err,
+			)
+			return err
+		}
 	}
-
 	return nil
 }
