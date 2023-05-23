@@ -186,6 +186,9 @@ The table below shows this endpoint's support for
     the query is executed. It allows the use of nodes in other datacenters with
     very little configuration.
 
+    - `SkipLocalDatacenter` `(bool)` - Specifies that the query should not be executed on the
+      local nodes and forwarded to the remote datacenters directly.
+
     - `NearestN` `(int: 0)` - Specifies that the query will be forwarded to up
       to `NearestN` other datacenters based on their estimated network round
       trip time using [Network Coordinates](/docs/architecture/coordinates)
@@ -276,7 +279,8 @@ The table below shows this endpoint's support for
     "Service": "redis",
     "Failover": {
       "NearestN": 3,
-      "Datacenters": ["dc1", "dc2"]
+      "Datacenters": ["dc1", "dc2"],
+      "SkipLocalDatacenter": false
     },
     "Near": "node1",
     "OnlyPassing": false,
@@ -352,7 +356,8 @@ $ curl \
       "Service": "redis",
       "Failover": {
         "NearestN": 3,
-        "Datacenters": ["dc1", "dc2"]
+        "Datacenters": ["dc1", "dc2"],
+        "SkipLocalDatacenter": false
       },
       "OnlyPassing": false,
       "Tags": ["primary", "!experimental"],
@@ -674,7 +679,8 @@ $ curl \
       "Service": "mysql-customer",
       "Failover": {
         "NearestN": 3,
-        "Datacenters": ["dc1", "dc2"]
+        "Datacenters": ["dc1", "dc2"],
+        "SkipLocalDatacenter": false
       },
       "OnlyPassing": true,
       "Tags": ["primary"],
