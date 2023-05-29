@@ -2309,6 +2309,179 @@ func TestPreparedQuery_Execute(t *testing.T) {
 	})
 }
 
+func prepared_query_apply_execute_and_check(t *testing.T, codec rpc.ClientCodec, query structs.PreparedQueryRequest, expected_nodes_count int, expected_failovers_count int) {
+	var resp string
+	if err := msgpackrpc.CallWithCodec(codec, "PreparedQuery.Apply", &query, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	req := structs.PreparedQueryExecuteRequest{
+		Datacenter:    "dc1",
+		QueryIDOrName: resp,
+	}
+	var reply structs.PreparedQueryExecuteResponse
+	if err := msgpackrpc.CallWithCodec(codec, "PreparedQuery.Execute", &req, &reply); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// It should not try any failover dc
+	if len(reply.Nodes) != expected_nodes_count {
+		t.Fatalf("incorrect nodes count: %v", reply)
+	}
+	if reply.Failovers != expected_failovers_count {
+		t.Fatalf("incorrect failovers count: %v", reply)
+	}
+}
+
+func TestPreparedQuery_Execute_Failover(t *testing.T) {
+	if testing.Short() {
+		t.Skip("too slow for testing.Short")
+	}
+
+	// Create cluster of 3 dcs: dc2 <-> dc1 <-> dc3
+	t.Parallel()
+	dir1, s1 := testServer(t)
+	defer os.RemoveAll(dir1)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	defer codec.Close()
+
+	dir2, s2 := testServerWithConfig(t, func(c *Config) {
+		c.Datacenter = "dc2"
+		c.PrimaryDatacenter = "dc2"
+	})
+	defer os.RemoveAll(dir2)
+	defer s2.Shutdown()
+
+	dir3, s3 := testServerWithConfig(t, func(c *Config) {
+		c.Datacenter = "dc3"
+		c.PrimaryDatacenter = "dc3"
+	})
+	defer os.RemoveAll(dir3)
+	defer s3.Shutdown()
+
+	testrpc.WaitForLeader(t, s1.RPC, "dc1")
+	testrpc.WaitForLeader(t, s2.RPC, "dc2")
+	testrpc.WaitForLeader(t, s3.RPC, "dc3")
+
+	// Try to join.
+	joinWAN(t, s2, s1)
+	joinWAN(t, s3, s1)
+
+	// Set up nodes and service in the catalog.
+	{
+		// One node in dc1
+		req := structs.RegisterRequest{
+			Datacenter: "dc1",
+			Node:       "foo",
+			Address:    "127.0.0.1",
+			Service: &structs.NodeService{
+				Service: "redis",
+				Tags:    []string{"primary"},
+				Port:    8000,
+			},
+		}
+		var reply struct{}
+		if err := msgpackrpc.CallWithCodec(codec, "Catalog.Register", &req, &reply); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		// Two nodes in dc2
+		for i, svc_name := range []string{"foo", "bar"} {
+			req = structs.RegisterRequest{
+				Datacenter: "dc2",
+				Node:       svc_name,
+				Address:    "127.0.0.1",
+				Service: &structs.NodeService{
+					Service: "redis",
+					Tags:    []string{"primary"},
+					Port:    8000+i,
+				},
+			}
+			if err := msgpackrpc.CallWithCodec(codec, "Catalog.Register", &req, &reply); err != nil {
+				t.Fatalf("err: %v", err)
+			}
+		}
+		// No nodes in dc3
+	}
+
+	// Set up a bare bones query with failover enabled
+	// But with dc1 as first failover dc
+	query := structs.PreparedQueryRequest{
+		Datacenter: "dc1",
+		Op:         structs.PreparedQueryCreate,
+		Query: &structs.PreparedQuery{
+			Name: "test_failover_enabled_dc1_first",
+			Service: structs.ServiceQuery{
+				Service: "redis",
+				Failover: structs.QueryDatacenterOptions {
+					SkipLocalDatacenter: true,
+					Datacenters: []string{"dc1", "dc2"},
+				},
+			},
+		},
+	}
+	// It should fallback on local dc since it appears first in Failover dc list
+	prepared_query_apply_execute_and_check(t, codec, query, 1, 1)
+
+	// Set up a bare bones query with failover enabled
+	// But without dc1 as failover dc
+	query = structs.PreparedQueryRequest{
+		Datacenter: "dc1",
+		Op:         structs.PreparedQueryCreate,
+		Query: &structs.PreparedQuery{
+			Name: "test_failover_enabled_withou_dc1_as_failover",
+			Service: structs.ServiceQuery{
+				Service: "redis",
+				Failover: structs.QueryDatacenterOptions {
+					SkipLocalDatacenter: true,
+					Datacenters: []string{"dc2"},
+				},
+			},
+		},
+	}
+	// It should fallback on local dc since it appears first in Failover dc list
+	prepared_query_apply_execute_and_check(t, codec, query, 2, 1)
+
+	// Set up a bare bones query with failover enabled
+	// with list of inexistent/undeclared failover dcs
+	query = structs.PreparedQueryRequest{
+		Datacenter: "dc1",
+		Op:         structs.PreparedQueryCreate,
+		Query: &structs.PreparedQuery{
+			Name: "test_failover_enabled_inexistent_dcs",
+			Service: structs.ServiceQuery{
+				Service: "redis",
+				Failover: structs.QueryDatacenterOptions {
+					SkipLocalDatacenter: true,
+					Datacenters: []string{"dc4", "dc5"},
+				},
+			},
+		},
+	}
+	// It should not try any failover dc
+	prepared_query_apply_execute_and_check(t, codec, query, 0, 0)
+
+	// Set up a bare bones query with failover enabled
+	// with list of inexistent dc then dc3 (0 node) and finally dc2 (2 nodes)
+	query = structs.PreparedQueryRequest{
+		Datacenter: "dc1",
+		Op:         structs.PreparedQueryCreate,
+		Query: &structs.PreparedQuery{
+			Name: "test_failover_enabled_choose_last_dc",
+			Service: structs.ServiceQuery{
+				Service: "redis",
+				Failover: structs.QueryDatacenterOptions {
+					SkipLocalDatacenter: true,
+					Datacenters: []string{"dc4", "dc3", "dc2"},
+				},
+			},
+		},
+	}
+	// It should fallback on the last dc in the failover list
+	// Not that when dc is not declared, the failover count is not increased
+	prepared_query_apply_execute_and_check(t, codec, query, 2, 2)
+}
+
 func TestPreparedQuery_Execute_ForwardLeader(t *testing.T) {
 	if testing.Short() {
 		t.Skip("too slow for testing.Short")
@@ -2808,6 +2981,13 @@ func TestPreparedQuery_queryFailover(t *testing.T) {
 		}
 	}
 
+	_, conf := testServerConfig(t)
+	srv, err := newServer(t, conf)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	prepared_query := PreparedQuery{srv, hclog.Default()}
+
 	// Datacenters are available but the query doesn't use them.
 	{
 		mock := &mockQueryServer{
@@ -2815,7 +2995,7 @@ func TestPreparedQuery_queryFailover(t *testing.T) {
 		}
 
 		var reply structs.PreparedQueryExecuteResponse
-		if err := queryFailover(mock, query, &structs.PreparedQueryExecuteRequest{}, &reply); err != nil {
+		if err := queryFailover(&prepared_query, mock, query, &structs.PreparedQueryExecuteRequest{}, &reply); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 		if len(reply.Nodes) != 0 || reply.Datacenter != "" || reply.Failovers != 0 {
@@ -2831,7 +3011,7 @@ func TestPreparedQuery_queryFailover(t *testing.T) {
 		}
 
 		var reply structs.PreparedQueryExecuteResponse
-		err := queryFailover(mock, query, &structs.PreparedQueryExecuteRequest{}, &reply)
+		err := queryFailover(&prepared_query, mock, query, &structs.PreparedQueryExecuteRequest{}, &reply)
 		if err == nil || !strings.Contains(err.Error(), "XXX") {
 			t.Fatalf("bad: %v", err)
 		}
@@ -2848,7 +3028,7 @@ func TestPreparedQuery_queryFailover(t *testing.T) {
 		}
 
 		var reply structs.PreparedQueryExecuteResponse
-		if err := queryFailover(mock, query, &structs.PreparedQueryExecuteRequest{}, &reply); err != nil {
+		if err := queryFailover(&prepared_query, mock, query, &structs.PreparedQueryExecuteRequest{}, &reply); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 		if len(reply.Nodes) != 0 || reply.Datacenter != "" || reply.Failovers != 0 {
@@ -2871,7 +3051,7 @@ func TestPreparedQuery_queryFailover(t *testing.T) {
 		}
 
 		var reply structs.PreparedQueryExecuteResponse
-		if err := queryFailover(mock, query, &structs.PreparedQueryExecuteRequest{}, &reply); err != nil {
+		if err := queryFailover(&prepared_query, mock, query, &structs.PreparedQueryExecuteRequest{}, &reply); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 		if len(reply.Nodes) != 3 ||
@@ -2899,7 +3079,7 @@ func TestPreparedQuery_queryFailover(t *testing.T) {
 		}
 
 		var reply structs.PreparedQueryExecuteResponse
-		if err := queryFailover(mock, query, &structs.PreparedQueryExecuteRequest{}, &reply); err != nil {
+		if err := queryFailover(&prepared_query, mock, query, &structs.PreparedQueryExecuteRequest{}, &reply); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 		if len(reply.Nodes) != 3 ||
@@ -2920,7 +3100,7 @@ func TestPreparedQuery_queryFailover(t *testing.T) {
 		}
 
 		var reply structs.PreparedQueryExecuteResponse
-		if err := queryFailover(mock, query, &structs.PreparedQueryExecuteRequest{}, &reply); err != nil {
+		if err := queryFailover(&prepared_query, mock, query, &structs.PreparedQueryExecuteRequest{}, &reply); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 		if len(reply.Nodes) != 0 ||
@@ -2949,7 +3129,7 @@ func TestPreparedQuery_queryFailover(t *testing.T) {
 		}
 
 		var reply structs.PreparedQueryExecuteResponse
-		if err := queryFailover(mock, query, &structs.PreparedQueryExecuteRequest{}, &reply); err != nil {
+		if err := queryFailover(&prepared_query, mock, query, &structs.PreparedQueryExecuteRequest{}, &reply); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 		if len(reply.Nodes) != 3 ||
@@ -2978,7 +3158,7 @@ func TestPreparedQuery_queryFailover(t *testing.T) {
 		}
 
 		var reply structs.PreparedQueryExecuteResponse
-		if err := queryFailover(mock, query, &structs.PreparedQueryExecuteRequest{}, &reply); err != nil {
+		if err := queryFailover(&prepared_query, mock, query, &structs.PreparedQueryExecuteRequest{}, &reply); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 		if len(reply.Nodes) != 3 ||
@@ -3007,7 +3187,7 @@ func TestPreparedQuery_queryFailover(t *testing.T) {
 		}
 
 		var reply structs.PreparedQueryExecuteResponse
-		if err := queryFailover(mock, query, &structs.PreparedQueryExecuteRequest{}, &reply); err != nil {
+		if err := queryFailover(&prepared_query, mock, query, &structs.PreparedQueryExecuteRequest{}, &reply); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 		if len(reply.Nodes) != 3 ||
@@ -3040,7 +3220,7 @@ func TestPreparedQuery_queryFailover(t *testing.T) {
 		}
 
 		var reply structs.PreparedQueryExecuteResponse
-		if err := queryFailover(mock, query, &structs.PreparedQueryExecuteRequest{}, &reply); err != nil {
+		if err := queryFailover(&prepared_query, mock, query, &structs.PreparedQueryExecuteRequest{}, &reply); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 		if len(reply.Nodes) != 3 ||
@@ -3072,7 +3252,7 @@ func TestPreparedQuery_queryFailover(t *testing.T) {
 		}
 
 		var reply structs.PreparedQueryExecuteResponse
-		if err := queryFailover(mock, query, &structs.PreparedQueryExecuteRequest{}, &reply); err != nil {
+		if err := queryFailover(&prepared_query, mock, query, &structs.PreparedQueryExecuteRequest{}, &reply); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 		if len(reply.Nodes) != 3 ||
@@ -3108,7 +3288,7 @@ func TestPreparedQuery_queryFailover(t *testing.T) {
 		}
 
 		var reply structs.PreparedQueryExecuteResponse
-		if err := queryFailover(mock, query, &structs.PreparedQueryExecuteRequest{
+		if err := queryFailover(&prepared_query, mock, query, &structs.PreparedQueryExecuteRequest{
 			Limit:        5,
 			QueryOptions: structs.QueryOptions{RequireConsistent: true},
 		}, &reply); err != nil {
@@ -3121,6 +3301,85 @@ func TestPreparedQuery_queryFailover(t *testing.T) {
 		}
 		if queries := mock.JoinQueryLog(); queries != "xxx:PreparedQuery.ExecuteRemote" {
 			t.Fatalf("bad: %s", queries)
+		}
+	}
+
+	// Failover on dc2 worked
+	query.Service.Failover.Datacenters = []string{"dc1", "dc2"}
+	query.Service.Failover.SkipLocalDatacenter = true
+	{
+		mock := &mockQueryServer{
+			Datacenters: []string{"dc1", "dc2", "dc3"},
+			QueryFn: func(dc string, _ interface{}, reply interface{}) error {
+				ret := reply.(*structs.PreparedQueryExecuteResponse)
+				if dc == "dc2" {
+					ret.Nodes = nodes()
+				}
+				return nil
+			},
+		}
+
+		var reply structs.PreparedQueryExecuteResponse
+		if err := queryFailover(&prepared_query, mock, query, &structs.PreparedQueryExecuteRequest{}, &reply); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		// - 3 nodes are returned
+		// - failed over twice (local dc since it's in the failover list then remote dc)
+		if len(reply.Nodes) != 3 || reply.Failovers != 2 {
+			t.Fatalf("bad: %v", reply)
+		}
+	}
+
+	// Failover on dc1 returned no nodes
+	query.Service.Failover.Datacenters = []string{"dc1"}
+	query.Service.Failover.SkipLocalDatacenter = true
+	{
+		mock := &mockQueryServer{
+			// Datacenters: []string{"dc1", "dc2", "dc3", "xxx", "dc4"},
+			Datacenters: []string{"dc1", "dc2", "dc3"},
+			QueryFn: func(dc string, _ interface{}, reply interface{}) error {
+				ret := reply.(*structs.PreparedQueryExecuteResponse)
+				if dc == "dc2" {
+					ret.Nodes = nodes()
+				}
+				return nil
+			},
+		}
+
+		var reply structs.PreparedQueryExecuteResponse
+		if err := queryFailover(&prepared_query, mock, query, &structs.PreparedQueryExecuteRequest{}, &reply); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		// - no nodes are returned
+		// - failed over once (local dc only since it's in the failover list)
+		if len(reply.Nodes) != 0 || reply.Failovers != 1 {
+			t.Fatalf("bad: %v", reply)
+		}
+	}
+
+	// Failover on dc3 worked
+	query.Service.Failover.Datacenters = []string{"dc1", "dc2", "dc3"}
+	query.Service.Failover.SkipLocalDatacenter = true
+	{
+		mock := &mockQueryServer{
+			Datacenters: []string{"dc1", "dc2", "dc3"},
+			QueryFn: func(dc string, _ interface{}, reply interface{}) error {
+				ret := reply.(*structs.PreparedQueryExecuteResponse)
+				if dc == "dc3" {
+					ret.Nodes = nodes()
+				}
+				return nil
+			},
+		}
+
+		var reply structs.PreparedQueryExecuteResponse
+		if err := queryFailover(&prepared_query, mock, query, &structs.PreparedQueryExecuteRequest{}, &reply); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		// - 3 nodes are returned
+		// - failed over three times (local dc since it's in the failover list then remote dcs)
+		if len(reply.Nodes) != 3 || reply.Failovers != 3 {
+			t.Fatalf("bad: %v", reply)
 		}
 	}
 }
