@@ -1,3 +1,8 @@
+## 1.13.8-criteo2 (June 08, 2023)
+BUG FIXES:
+
+* fix version file. [[GH-212](https://github.com/criteo-forks/consul/pull/212)]
+
 ## 1.13.8-criteo1 (June 06, 2023)
 
 These were ported from consul v1.12.9-criteo2
