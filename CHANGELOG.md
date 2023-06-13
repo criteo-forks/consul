@@ -1,3 +1,8 @@
+## 1.13.8-criteo3 (June 13, 2023)
+HACK:
+
+* discard broken object to be able to restore snapshot. [[GH-215](https://github.com/criteo-forks/consul/pull/215)]
+ 
 ## 1.13.8-criteo2 (June 08, 2023)
 BUG FIXES:
 
