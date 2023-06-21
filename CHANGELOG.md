@@ -1,3 +1,12 @@
+## 1.13.8-criteo4 (June 21, 2023)
+Revert:
+
+* Revert: Silence an error when restoring a ServiceVirtualIP from a snapshot [[GH-218](https://github.com/criteo-forks/consul/pull/218)]
+
+BUG FIXES:
+
+* api: fix non-connect endpoints give downstream connect informations [[GH-217](https://github.com/criteo-forks/consul/pull/217)]
+
 ## 1.13.8-criteo3 (June 13, 2023)
 HACK:
 
