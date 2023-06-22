@@ -3442,7 +3442,7 @@ func (a *Agent) loadServices(conf *config.RuntimeConfig, snap map[structs.CheckI
 				persist:               false, // don't rewrite the file with the same data we just read
 				token:                 service.Token,
 				replaceExistingChecks: false, // do default behavior
-					Source:                ConfigSourceLocal,
+				Source:                ConfigSourceLocal,
 			},
 			serviceDefaults:      serviceDefaultsFromStruct(persistedServiceConfigs[sid]),
 			persistServiceConfig: false, // don't rewrite the file with the same data we just read
