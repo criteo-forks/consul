@@ -1,3 +1,8 @@
+## 1.13.8-criteo6 (June 28, 2023)
+BUG FIXES:
+
+* strip version to avoid leading/trailing spaces [[GH-222](https://github.com/criteo-forks/consul/pull/222)]
+
 ## 1.13.8-criteo5 (June 22, 2023)
 BUG FIXES:
 
