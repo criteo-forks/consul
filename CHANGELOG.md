@@ -1,3 +1,8 @@
+## 1.13.8-criteo7 (July 03, 2023)
+BUG FIXES:
+
+* api: fix non-connect endpoints give downstream connect informations [[GH-224](https://github.com/criteo-forks/consul/pull/224)]
+
 ## 1.13.8-criteo6 (June 28, 2023)
 BUG FIXES:
 
