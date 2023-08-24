@@ -3135,7 +3135,7 @@ func testAgent_loadServices_sidecar(t *testing.T, extraHCL string) {
 	require.Equal(t, sidecarSvc.Service, svc.Proxy.DestinationServiceName)
 
 	// Verify default checks have been added
-	wantChecks := sidecarDefaultChecks(sidecarSvc.ID, sidecarSvc.Address, sidecarSvc.Proxy.LocalServiceAddress, sidecarSvc.Port)
+	wantChecks := sidecarDefaultChecks(sidecarSvc.ID, sidecarSvc.Address, sidecarSvc.Proxy.LocalServiceAddress, sidecarSvc.Port, 0)
 	gotChecks := a.State.ChecksForService(sidecarSvc.CompoundServiceID(), true)
 	gotChkNames := make(map[string]types.CheckID)
 	for _, check := range gotChecks {
