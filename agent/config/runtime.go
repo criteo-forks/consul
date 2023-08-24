@@ -533,6 +533,10 @@ type RuntimeConfig struct {
 	// deterministic again.
 	ConnectTestCALeafRootChangeSpread time.Duration
 
+	// ConnectDefaultDeregisterCriticalServiceAfter is the default duration to use
+	// for connect service checks DefaultDeregisterCriticalServiceAfter value
+	ConnectDefaultDeregisterCriticalServiceAfter time.Duration
+
 	// DNSAddrs contains the list of TCP and UDP addresses the DNS server will
 	// bind to. If the DNS endpoint is disabled (ports.dns <= 0) the list is
 	// empty.

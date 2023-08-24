@@ -2386,7 +2386,7 @@ func (a *Agent) addServiceLocked(req addServiceLockedRequest) error {
 		}
 		// Setup default check if none given.
 		if len(req.chkTypes) < 1 {
-			req.chkTypes = sidecarDefaultChecks(req.Service.ID, req.Service.Address, req.Service.Proxy.LocalServiceAddress, req.Service.Port)
+			req.chkTypes = sidecarDefaultChecks(req.Service.ID, req.Service.Address, req.Service.Proxy.LocalServiceAddress, req.Service.Port, a.config.ConnectDefaultDeregisterCriticalServiceAfter)
 		}
 	}
 
