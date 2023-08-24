@@ -213,7 +213,7 @@ func (a *Agent) sidecarPortFromServiceIDLocked(sidecarCompoundServiceID structs.
 	return sidecarPort, nil
 }
 
-func sidecarDefaultChecks(sidecarID string, sidecarAddress string, proxyServiceAddress string, port int) []*structs.CheckType {
+func sidecarDefaultChecks(sidecarID string, sidecarAddress string, proxyServiceAddress string, port int, deregisterCriticalServiceAfter time.Duration) []*structs.CheckType {
 	// The check should use the sidecar's address because it makes a request to the sidecar.
 	// If the sidecar's address is empty, we fall back to the address of the local service, as set in
 	// sidecar.Proxy.LocalServiceAddress, in the hope that the proxy is also accessible on that address
@@ -228,13 +228,15 @@ func sidecarDefaultChecks(sidecarID string, sidecarAddress string, proxyServiceA
 	serviceID := serviceIDFromSidecarID(sidecarID)
 	return []*structs.CheckType{
 		{
-			Name:     "Connect Sidecar Listening",
-			TCP:      ipaddr.FormatAddressPort(checkAddress, port),
-			Interval: 10 * time.Second,
+			Name:                           "Connect Sidecar Listening",
+			TCP:                            ipaddr.FormatAddressPort(checkAddress, port),
+			Interval:                       10 * time.Second,
+			DeregisterCriticalServiceAfter: deregisterCriticalServiceAfter,
 		},
 		{
-			Name:         "Connect Sidecar Aliasing " + serviceID,
-			AliasService: serviceID,
+			Name:                           "Connect Sidecar Aliasing " + serviceID,
+			AliasService:                   serviceID,
+			DeregisterCriticalServiceAfter: deregisterCriticalServiceAfter,
 		},
 	}
 }
