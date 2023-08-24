@@ -687,6 +687,7 @@ func (b *builder) build() (rt RuntimeConfig, err error) {
 	connectEnabled := boolVal(c.Connect.Enabled)
 	connectCAProvider := stringVal(c.Connect.CAProvider)
 	connectCAConfig := c.Connect.CAConfig
+	connectDefaultDeregisterCriticalServiceAfter := b.durationVal("connect_default_deregister_critical_service_after", c.Connect.DefaultDeregisterCriticalServiceAfter)
 
 	// autoEncrypt and autoConfig implicitly turns on connect which is why
 	// they need to be above other settings that rely on connect.
@@ -978,6 +979,7 @@ func (b *builder) build() (rt RuntimeConfig, err error) {
 				c.Cache.EntryFetchMaxBurst, cache.DefaultEntryFetchMaxBurst,
 			),
 		},
+
 		AutoReloadConfig:                       boolVal(c.AutoReloadConfig),
 		CheckUpdateInterval:                    b.durationVal("check_update_interval", c.CheckUpdateInterval),
 		CheckOutputMaxSize:                     intValWithDefault(c.CheckOutputMaxSize, 4096),
@@ -997,21 +999,24 @@ func (b *builder) build() (rt RuntimeConfig, err error) {
 		ConnectSidecarMinPort:                  sidecarMinPort,
 		ConnectSidecarMaxPort:                  sidecarMaxPort,
 		ConnectTestCALeafRootChangeSpread:      b.durationVal("connect.test_ca_leaf_root_change_spread", c.Connect.TestCALeafRootChangeSpread),
-		ExposeMinPort:                          exposeMinPort,
-		ExposeMaxPort:                          exposeMaxPort,
-		DataDir:                                dataDir,
-		Datacenter:                             datacenter,
-		DefaultQueryTime:                       b.durationVal("default_query_time", c.DefaultQueryTime),
-		DefaultIntentionPolicy:                 stringVal(c.DefaultIntentionPolicy),
-		DevMode:                                boolVal(b.opts.DevMode),
-		DisableAnonymousSignature:              boolVal(c.DisableAnonymousSignature),
-		DisableCoordinates:                     boolVal(c.DisableCoordinates),
-		DisableHostNodeID:                      boolVal(c.DisableHostNodeID),
-		DisableHTTPUnprintableCharFilter:       boolVal(c.DisableHTTPUnprintableCharFilter),
-		DisableKeyringFile:                     boolVal(c.DisableKeyringFile),
-		DisableRemoteExec:                      boolVal(c.DisableRemoteExec),
-		DisableUpdateCheck:                     boolVal(c.DisableUpdateCheck),
-		DiscardCheckOutput:                     boolVal(c.DiscardCheckOutput),
+
+		ConnectDefaultDeregisterCriticalServiceAfter: connectDefaultDeregisterCriticalServiceAfter,
+
+		ExposeMinPort:                    exposeMinPort,
+		ExposeMaxPort:                    exposeMaxPort,
+		DataDir:                          dataDir,
+		Datacenter:                       datacenter,
+		DefaultQueryTime:                 b.durationVal("default_query_time", c.DefaultQueryTime),
+		DefaultIntentionPolicy:           stringVal(c.DefaultIntentionPolicy),
+		DevMode:                          boolVal(b.opts.DevMode),
+		DisableAnonymousSignature:        boolVal(c.DisableAnonymousSignature),
+		DisableCoordinates:               boolVal(c.DisableCoordinates),
+		DisableHostNodeID:                boolVal(c.DisableHostNodeID),
+		DisableHTTPUnprintableCharFilter: boolVal(c.DisableHTTPUnprintableCharFilter),
+		DisableKeyringFile:               boolVal(c.DisableKeyringFile),
+		DisableRemoteExec:                boolVal(c.DisableRemoteExec),
+		DisableUpdateCheck:               boolVal(c.DisableUpdateCheck),
+		DiscardCheckOutput:               boolVal(c.DiscardCheckOutput),
 
 		DiscoveryMaxStale:          b.durationVal("discovery_max_stale", c.DiscoveryMaxStale),
 		EnableAgentTLSForChecks:    boolVal(c.EnableAgentTLSForChecks),
