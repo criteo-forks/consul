@@ -690,6 +690,7 @@ func (b *builder) build() (rt RuntimeConfig, err error) {
 	connectEnabled := boolVal(c.Connect.Enabled)
 	connectCAProvider := stringVal(c.Connect.CAProvider)
 	connectCAConfig := c.Connect.CAConfig
+	connectDefaultDeregisterCriticalServiceAfter := b.durationVal("connect_default_deregister_critical_service_after", c.Connect.DefaultDeregisterCriticalServiceAfter)
 	connectVirtualIPCIDRv4 := state.DefaultVirtualIPv4CIDR
 	if cidr := stringVal(c.Connect.VirtualIPCIDRv4); cidr != "" {
 		connectVirtualIPCIDRv4 = cidr
@@ -1016,6 +1017,7 @@ func (b *builder) build() (rt RuntimeConfig, err error) {
 		ConnectVirtualIPCIDRv4:                 connectVirtualIPCIDRv4,
 		ConnectVirtualIPCIDRv6:                 connectVirtualIPCIDRv6,
 		ConnectTestCALeafRootChangeSpread:      b.durationVal("connect.test_ca_leaf_root_change_spread", c.Connect.TestCALeafRootChangeSpread),
+		ConnectDefaultDeregisterCriticalServiceAfter: connectDefaultDeregisterCriticalServiceAfter,
 		ExposeMinPort:                          exposeMinPort,
 		ExposeMaxPort:                          exposeMaxPort,
 		DataDir:                                dataDir,

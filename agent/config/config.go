@@ -650,6 +650,7 @@ type Connect struct {
 	// This is only tuned in tests, generally set to 1ns to make tests deterministic with when to expect updated leaf
 	// certs by. This configuration is not exposed to users (not documented, and agent/config/default.go will override it)
 	TestCALeafRootChangeSpread *string `mapstructure:"test_ca_leaf_root_change_spread" json:"test_ca_leaf_root_change_spread,omitempty"`
+	DefaultDeregisterCriticalServiceAfter *string `mapstructure:"default_deregister_critical_service_after,omitempty"`
 }
 
 // SOA is the configuration of SOA for DNS
