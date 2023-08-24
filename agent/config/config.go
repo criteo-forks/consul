@@ -626,10 +626,11 @@ type AutoEncrypt struct {
 type Connect struct {
 	// Enabled opts the agent into connect. It should be set on all clients and
 	// servers in a cluster for correct connect operation.
-	Enabled                         *bool                  `mapstructure:"enabled" json:"enabled,omitempty"`
-	CAProvider                      *string                `mapstructure:"ca_provider" json:"ca_provider,omitempty"`
-	CAConfig                        map[string]interface{} `mapstructure:"ca_config" json:"ca_config,omitempty"`
-	MeshGatewayWANFederationEnabled *bool                  `mapstructure:"enable_mesh_gateway_wan_federation" json:"enable_mesh_gateway_wan_federation,omitempty"`
+	Enabled                               *bool                  `mapstructure:"enabled" json:"enabled,omitempty"`
+	CAProvider                            *string                `mapstructure:"ca_provider" json:"ca_provider,omitempty"`
+	CAConfig                              map[string]interface{} `mapstructure:"ca_config" json:"ca_config,omitempty"`
+	MeshGatewayWANFederationEnabled       *bool                  `mapstructure:"enable_mesh_gateway_wan_federation" json:"enable_mesh_gateway_wan_federation,omitempty"`
+	DefaultDeregisterCriticalServiceAfter *string                `mapstructure:"default_deregister_critical_service_after,omitempty"`
 
 	// TestCALeafRootChangeSpread controls how long after a CA roots change before new leaf certs will be generated.
 	// This is only tuned in tests, generally set to 1ns to make tests deterministic with when to expect updated leaf
