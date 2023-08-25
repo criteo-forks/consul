@@ -141,6 +141,7 @@
     "ConfigEntryBootstrap": [],
     "ConnectCAConfig": {},
     "ConnectCAProvider": "",
+    "ConnectDefaultDeregisterCriticalServiceAfter":"0s",
     "ConnectEnabled": false,
     "ConnectMeshGatewayWANFederationEnabled": false,
     "ConnectSidecarMaxPort": 0,
