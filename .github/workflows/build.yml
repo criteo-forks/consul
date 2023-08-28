@@ -22,7 +22,7 @@ jobs:
       pre-version: ${{ steps.set-product-version.outputs.prerelease-product-version }}
       shared-ldflags: ${{ steps.shared-ldflags.outputs.shared-ldflags }}
     steps:
-      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # pin@v3.3.0
+      - uses: actions/setup-go@v4
       - name: set product version
         id: set-product-version
         uses: hashicorp/actions-set-product-version@v1
@@ -60,7 +60,7 @@ jobs:
       filepath: ${{ steps.generate-metadata-file.outputs.filepath }}
     steps:
       - name: 'Checkout directory'
-        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # pin@v3.3.0
+        uses: actions/setup-go@v4
       - name: Generate metadata file
         id: generate-metadata-file
         uses: hashicorp/actions-generate-metadata@v1
@@ -92,7 +92,7 @@ jobs:
 
     name: Go ${{ matrix.go }} ${{ matrix.goos }} ${{ matrix.goarch }} build
     steps:
-      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # pin@v3.3.0
+      - uses: actions/setup-go@v4
 
       - name: Setup with node and yarn
         uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c # pin@v3.6.0
@@ -181,7 +181,7 @@ jobs:
 
     name: Go ${{ matrix.go }} ${{ matrix.goos }} ${{ matrix.goarch }} build
     steps:
-      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # pin@v3.3.0
+      - uses: actions/setup-go@v4
           
       - name: Setup with node and yarn
         uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c # pin@v3.6.0
@@ -232,7 +232,7 @@ jobs:
       version: ${{needs.set-product-version.outputs.product-version}}
 
     steps:
-      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # pin@v3.3.0
+      - uses: actions/setup-go@v4
 
       # Strip everything but MAJOR.MINOR from the version string and add a `-dev` suffix
       # This naming convention will be used ONLY for per-commit dev images
@@ -266,7 +266,7 @@ jobs:
       version: ${{needs.set-product-version.outputs.product-version}}
 
     steps:
-      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # pin@v3.3.0
+      - uses: actions/setup-go@v4
       - uses: hashicorp/actions-docker-build@v1
         with:
           version: ${{env.version}}
@@ -286,7 +286,7 @@ jobs:
       version: ${{needs.set-product-version.outputs.product-version}}
 
     steps:
-      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # pin@v3.3.0
+      - uses: actions/setup-go@v4
 
       # Strip everything but MAJOR.MINOR from the version string and add a `-dev` suffix
       # This naming convention will be used ONLY for per-commit dev images
@@ -323,7 +323,7 @@ jobs:
 
     name: Verify ${{ matrix.arch }} linux binary
     steps:
-      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # pin@v3.3.0
+      - uses: actions/setup-go@v4
 
       - name: Download ${{ matrix.arch  }} zip
         uses: actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a # pin@v3.0.2
@@ -353,7 +353,7 @@ jobs:
 
     name: Verify amd64 darwin binary
     steps:
-      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # pin@v3.3.0
+      - uses: actions/setup-go@v4
 
       - name: Download amd64 darwin zip
         uses: actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a # pin@v3.0.2
@@ -380,7 +380,7 @@ jobs:
 
     name: Verify ${{ matrix.arch }} debian package
     steps:
-      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # pin@v3.3.0
+      - uses: actions/setup-go@v4
 
       - name: Set package version
         run: |
@@ -417,7 +417,7 @@ jobs:
 
     name: Verify ${{ matrix.arch }} rpm
     steps:
-      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # pin@v3.3.0
+      - uses: actions/setup-go@v4
 
       - name: Set package version
         run: |

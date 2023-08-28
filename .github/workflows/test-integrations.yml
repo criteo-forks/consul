@@ -35,7 +35,7 @@ jobs:
       compute-xl: ${{ steps.runners.outputs.compute-xl }}
       enterprise: ${{ steps.runners.outputs.enterprise }}
     steps:
-      - uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f # v3.4.0
+      - uses: actions/setup-go@v4
       - id: runners
         run: .github/scripts/get_runner_classes.sh
 
@@ -62,13 +62,13 @@ jobs:
         nomad-version: ['v1.3.3', 'v1.2.10', 'v1.1.16']
     steps:
       - name: Checkout Nomad
-        uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f # v3.4.0
+        uses: actions/setup-go@v4
         with:
           repository: hashicorp/nomad
           ref: ${{ matrix.nomad-version }}
 
       - name: Install Go
-        uses: actions/setup-go@6edd4406fa81c3da01a34fa6f6343087c207a568 # v3.5.0
+        uses: actions/setup-go@v4 # v3.5.0
         with:
           go-version-file: 'go.mod'
 
@@ -143,7 +143,7 @@ jobs:
       VAULT_BINARY_VERSION: ${{ matrix.vault-version }}
     steps:
 
-      - uses: actions/setup-go@6edd4406fa81c3da01a34fa6f6343087c207a568 # v3.5.0
+      - uses: actions/setup-go@v4 # v3.5.0
         with:
           go-version-file: 'go.mod'
 
@@ -208,7 +208,7 @@ jobs:
     outputs:
       envoy-matrix: ${{ steps.set-matrix.outputs.envoy-matrix }}
     steps:
-      - uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f # v3.4.0
+      - uses: actions/setup-go@v4
       - name: Generate Envoy Job Matrix
         id: set-matrix
         env:
@@ -257,8 +257,8 @@ jobs:
       XDS_TARGET: ${{ matrix.xds-target }}
       AWS_LAMBDA_REGION: us-west-2
     steps:
-      - uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f # v3.4.0
-      - uses: actions/setup-go@6edd4406fa81c3da01a34fa6f6343087c207a568 # v3.5.0
+      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@v4 # v3.5.0
         with:
           go-version-file: 'go.mod'
 
@@ -340,8 +340,8 @@ jobs:
     env:
       ENVOY_VERSION: "1.25.4"
     steps:
-      - uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f # v3.4.0
-      - uses: actions/setup-go@6edd4406fa81c3da01a34fa6f6343087c207a568 # v3.5.0
+      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@v4 # v3.5.0
         with:
           go-version-file: 'go.mod'
       - run: go env
@@ -426,8 +426,8 @@ jobs:
       CONSUL_LATEST_VERSION: ${{ matrix.consul-version }}
       ENVOY_VERSION: "1.24.6"
     steps:
-      - uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f # v3.4.0
-      - uses: actions/setup-go@6edd4406fa81c3da01a34fa6f6343087c207a568 # v3.5.0
+      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@v4 # v3.5.0
         with:
           go-version-file: 'go.mod'
       - run: go env

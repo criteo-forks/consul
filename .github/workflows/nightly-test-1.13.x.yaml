@@ -13,7 +13,7 @@ jobs:
   frontend-test-workspace-node:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v4
         with:
           ref: ${{ env.BRANCH }}
 
@@ -45,7 +45,7 @@ jobs:
       JOBS: 2
       CONSUL_NSPACES_ENABLED: 0
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v4
         with:
           ref: ${{ env.BRANCH }}
 
@@ -84,7 +84,7 @@ jobs:
       EMBER_TEST_REPORT: test-results/report-oss.xml #outputs test report for CI test summary
       EMBER_TEST_PARALLEL: true #enables test parallelization with ember-exam
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v4
         with:
           ref: ${{ env.BRANCH }}
 
