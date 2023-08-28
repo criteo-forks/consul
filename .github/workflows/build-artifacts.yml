@@ -37,32 +37,6 @@ jobs:
       id-token: write # NOTE: this permission is explicitly required for Vault auth.
       contents: read
     steps:
-    # NOTE: ENT specific step as we store secrets in Vault.
-    - name: Authenticate to Vault
-      if: ${{ endsWith(github.repository, '-enterprise') }}
-      id: vault-auth
-      run: vault-auth
-
-    # NOTE: ENT specific step as we store secrets in Vault.
-    - name: Fetch Secrets
-      if: ${{ endsWith(github.repository, '-enterprise') }}
-      id: secrets
-      uses: hashicorp/vault-action@v2.5.0
-      with:
-        url: ${{ steps.vault-auth.outputs.addr }}
-        caCertificate: ${{ steps.vault-auth.outputs.ca_certificate }}
-        token: ${{ steps.vault-auth.outputs.token }}
-        secrets: |
-            kv/data/github/${{ github.repository }}/dockerhub username | DOCKERHUB_USERNAME;
-            kv/data/github/${{ github.repository }}/dockerhub token | DOCKERHUB_TOKEN;
-
-    - uses: actions/setup-go@v4
-
-    # NOTE: ENT specific step as we need to set elevated GitHub permissions.
-    - name: Setup Git
-      if: ${{ endsWith(github.repository, '-enterprise') }}
-      run: git config --global url."https://${{ secrets.ELEVATED_GITHUB_TOKEN }}:@github.com".insteadOf "https://github.com"
-
     - uses: actions/setup-go@v4 # pin@v3.5.0
       with:
         go-version-file: 'go.mod'
