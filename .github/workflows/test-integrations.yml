@@ -142,12 +142,6 @@ jobs:
     env:
       VAULT_BINARY_VERSION: ${{ matrix.vault-version }}
     steps:
-      - uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f # v3.4.0
-
-      # NOTE: This step is specifically needed for ENT. It allows us to access the required private HashiCorp repos.
-      - name: Setup Git
-        if: ${{ endsWith(github.repository, '-enterprise') }}
-        run: git config --global url."https://${{ secrets.ELEVATED_GITHUB_TOKEN }}:@github.com".insteadOf "https://github.com"
 
       - uses: actions/setup-go@6edd4406fa81c3da01a34fa6f6343087c207a568 # v3.5.0
         with:
@@ -176,24 +170,6 @@ jobs:
             --format=short-verbose \
             --junitfile "${{ env.TEST_RESULTS_DIR }}/gotestsum-report-agent.xml" \
             -- -tags "${{ env.GOTAGS }}" -cover -coverprofile=coverage-agent.txt -run Vault ./agent
-
-      # NOTE: ENT specific step as we store secrets in Vault.
-      - name: Authenticate to Vault
-        if: ${{ endsWith(github.repository, '-enterprise') }}
-        id: vault-auth
-        run: vault-auth
-
-      # NOTE: ENT specific step as we store secrets in Vault.
-      - name: Fetch Secrets
-        if: ${{ endsWith(github.repository, '-enterprise') }}
-        id: secrets
-        uses: hashicorp/vault-action@v2.5.0
-        with:
-          url: ${{ steps.vault-auth.outputs.addr }}
-          caCertificate: ${{ steps.vault-auth.outputs.ca_certificate }}
-          token: ${{ steps.vault-auth.outputs.token }}
-          secrets: |
-              kv/data/github/${{ github.repository }}/datadog apikey | DATADOG_API_KEY;
 
       - name: prepare datadog-ci
         if: ${{ !endsWith(github.repository, '-enterprise') }}
@@ -420,24 +396,6 @@ jobs:
           # tput complains if this isn't set to something.
           TERM: ansi
 
-      # NOTE: ENT specific step as we store secrets in Vault.
-      - name: Authenticate to Vault
-        if: ${{ endsWith(github.repository, '-enterprise') }}
-        id: vault-auth
-        run: vault-auth
-
-      # NOTE: ENT specific step as we store secrets in Vault.
-      - name: Fetch Secrets
-        if: ${{ endsWith(github.repository, '-enterprise') }}
-        id: secrets
-        uses: hashicorp/vault-action@v2.5.0
-        with:
-          url: ${{ steps.vault-auth.outputs.addr }}
-          caCertificate: ${{ steps.vault-auth.outputs.ca_certificate }}
-          token: ${{ steps.vault-auth.outputs.token }}
-          secrets: |
-              kv/data/github/${{ github.repository }}/datadog apikey | DATADOG_API_KEY;
-
       - name: prepare datadog-ci
         if: ${{ !endsWith(github.repository, '-enterprise') }}
         run: |
@@ -519,23 +477,6 @@ jobs:
           COMPOSE_INTERACTIVE_NO_CLI: 1
           # tput complains if this isn't set to something.
           TERM: ansi
-      # NOTE: ENT specific step as we store secrets in Vault.
-      - name: Authenticate to Vault
-        if: ${{ endsWith(github.repository, '-enterprise') }}
-        id: vault-auth
-        run: vault-auth
-
-      # NOTE: ENT specific step as we store secrets in Vault.
-      - name: Fetch Secrets
-        if: ${{ endsWith(github.repository, '-enterprise') }}
-        id: secrets
-        uses: hashicorp/vault-action@v2.5.0
-        with:
-          url: ${{ steps.vault-auth.outputs.addr }}
-          caCertificate: ${{ steps.vault-auth.outputs.ca_certificate }}
-          token: ${{ steps.vault-auth.outputs.token }}
-          secrets: |
-              kv/data/github/${{ github.repository }}/datadog apikey | DATADOG_API_KEY;
 
       - name: prepare datadog-ci
         if: ${{ !endsWith(github.repository, '-enterprise') }}

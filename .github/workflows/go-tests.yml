@@ -52,11 +52,6 @@ jobs:
     - setup   
     runs-on: ${{ fromJSON(needs.setup.outputs.compute-small) }}
     steps:
-    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # pin@v3.3.0
-    # NOTE: This step is specifically needed for ENT. It allows us to access the required private HashiCorp repos.
-    - name: Setup Git
-      if: ${{ endsWith(github.repository, '-enterprise') }}
-      run: git config --global url."https://${{ secrets.ELEVATED_GITHUB_TOKEN }}:@github.com".insteadOf "https://github.com"
     - uses: actions/setup-go@6edd4406fa81c3da01a34fa6f6343087c207a568 # pin@v3.5.0
       with:
         go-version-file: 'go.mod'
@@ -80,11 +75,6 @@ jobs:
     - setup   
     runs-on: ${{ fromJSON(needs.setup.outputs.compute-large) }}
     steps:
-    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # pin@v3.3.0
-    # NOTE: This step is specifically needed for ENT. It allows us to access the required private HashiCorp repos.
-    - name: Setup Git
-      if: ${{ endsWith(github.repository, '-enterprise') }}
-      run: git config --global url."https://${{ secrets.ELEVATED_GITHUB_TOKEN }}:@github.com".insteadOf "https://github.com"
     - uses: actions/setup-go@6edd4406fa81c3da01a34fa6f6343087c207a568 # pin@v3.5.0
       with:
         go-version-file: 'go.mod'
@@ -105,11 +95,6 @@ jobs:
     - setup   
     runs-on: ${{ fromJSON(needs.setup.outputs.compute-large) }}
     steps:
-    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # pin@v3.3.0
-    # NOTE: This step is specifically needed for ENT. It allows us to access the required private HashiCorp repos.
-    - name: Setup Git
-      if: ${{ endsWith(github.repository, '-enterprise') }}
-      run: git config --global url."https://${{ secrets.ELEVATED_GITHUB_TOKEN }}:@github.com".insteadOf "https://github.com"
     - uses: actions/setup-go@6edd4406fa81c3da01a34fa6f6343087c207a568 # pin@v3.5.0
       with:
         go-version-file: 'go.mod'
@@ -123,10 +108,6 @@ jobs:
     - setup
     runs-on: ${{ fromJSON(needs.setup.outputs.compute-small) }}
     steps:
-    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # pin@v3.3.0
-    # NOTE: This step is specifically needed for ENT. It allows us to access the required private HashiCorp repos.
-    - name: Setup Git
-      run: git config --global url."https://${{ secrets.ELEVATED_GITHUB_TOKEN }}:@github.com".insteadOf "https://github.com"
     - uses: actions/setup-go@6edd4406fa81c3da01a34fa6f6343087c207a568 # pin@v3.5.0
       with:
         go-version-file: 'go.mod'
@@ -140,11 +121,6 @@ jobs:
     - setup   
     runs-on: ${{ fromJSON(needs.setup.outputs.compute-small) }}
     steps:
-    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # pin@v3.3.0
-    # NOTE: This step is specifically needed for ENT. It allows us to access the required private HashiCorp repos.
-    - name: Setup Git
-      if: ${{ endsWith(github.repository, '-enterprise') }}
-      run: git config --global url."https://${{ secrets.ELEVATED_GITHUB_TOKEN }}:@github.com".insteadOf "https://github.com"
     - uses: actions/setup-go@6edd4406fa81c3da01a34fa6f6343087c207a568 # pin@v3.5.0
       with:
         go-version-file: 'go.mod'
@@ -234,28 +210,6 @@ jobs:
       contents: read    
     secrets:
       elevated-github-token: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
-      consul-license: ${{secrets.CONSUL_LICENSE}}
-      datadog-api-key: "${{ !endsWith(github.repository, '-enterprise') && secrets.DATADOG_API_KEY || '' }}"
-
-  go-test-enterprise:
-    if: ${{ endsWith(github.repository, '-enterprise') }}
-    needs: 
-    - setup   
-    - dev-build
-    uses: ./.github/workflows/reusable-unit-split.yml
-    with:
-      directory: .
-      runner-count: 12
-      runs-on: ${{ needs.setup.outputs.compute-xl }}
-      repository-name: ${{ github.repository }}
-      go-tags: "${{ github.event.repository.name == 'consul-enterprise' && 'consulent consulprem consuldev' || '' }}"
-    permissions:
-      id-token: write # NOTE: this permission is explicitly required for Vault auth.
-      contents: read    
-    secrets:
-      elevated-github-token: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
-      consul-license: ${{secrets.CONSUL_LICENSE}}
-      datadog-api-key: "${{ !endsWith(github.repository, '-enterprise') && secrets.DATADOG_API_KEY || '' }}"
 
   go-test-race:
     needs: 
@@ -274,8 +228,6 @@ jobs:
       contents: read    
     secrets:
       elevated-github-token: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
-      consul-license: ${{secrets.CONSUL_LICENSE}}
-      datadog-api-key: "${{ !endsWith(github.repository, '-enterprise') && secrets.DATADOG_API_KEY || '' }}"
 
   go-test-32bit:
     needs: 
@@ -294,8 +246,6 @@ jobs:
       contents: read    
     secrets:
       elevated-github-token: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
-      consul-license: ${{secrets.CONSUL_LICENSE}}
-      datadog-api-key: "${{ !endsWith(github.repository, '-enterprise') && secrets.DATADOG_API_KEY || '' }}"
 
   go-test-envoyextensions:
     needs:
@@ -312,8 +262,6 @@ jobs:
       contents: read    
     secrets:
       elevated-github-token: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
-      consul-license: ${{secrets.CONSUL_LICENSE}}
-      datadog-api-key: "${{ !endsWith(github.repository, '-enterprise') && secrets.DATADOG_API_KEY || '' }}"
 
   go-test-troubleshoot:
     needs:
@@ -330,8 +278,6 @@ jobs:
       contents: read    
     secrets:
       elevated-github-token: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
-      consul-license: ${{secrets.CONSUL_LICENSE}}
-      datadog-api-key: "${{ !endsWith(github.repository, '-enterprise') && secrets.DATADOG_API_KEY || '' }}"
 
   go-test-api-1-19:
     needs: 
@@ -348,8 +294,6 @@ jobs:
       contents: read    
     secrets:
       elevated-github-token: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
-      consul-license: ${{secrets.CONSUL_LICENSE}}
-      datadog-api-key: "${{ !endsWith(github.repository, '-enterprise') && secrets.DATADOG_API_KEY || '' }}"
 
   go-test-api-1-20:
     needs: 
@@ -366,8 +310,6 @@ jobs:
       contents: read    
     secrets:
       elevated-github-token: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
-      consul-license: ${{secrets.CONSUL_LICENSE}}
-      datadog-api-key: "${{ !endsWith(github.repository, '-enterprise') && secrets.DATADOG_API_KEY || '' }}"
 
   go-test-sdk-1-19:
     needs: 
@@ -384,8 +326,6 @@ jobs:
       contents: read    
     secrets:
       elevated-github-token: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
-      consul-license: ${{secrets.CONSUL_LICENSE}}
-      datadog-api-key: "${{ !endsWith(github.repository, '-enterprise') && secrets.DATADOG_API_KEY || '' }}"
 
   go-test-sdk-1-20:
     needs: 
@@ -402,8 +342,6 @@ jobs:
       contents: read    
     secrets:
       elevated-github-token: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
-      consul-license: ${{secrets.CONSUL_LICENSE}}
-      datadog-api-key: "${{ !endsWith(github.repository, '-enterprise') && secrets.DATADOG_API_KEY || '' }}"
 
   noop:
     runs-on: ubuntu-latest
@@ -436,7 +374,6 @@ jobs:
     - lint
     - lint-32bit
     # - go-test-arm64
-    - go-test-enterprise
     - go-test-oss 
     - go-test-race
     - go-test-envoyextensions
