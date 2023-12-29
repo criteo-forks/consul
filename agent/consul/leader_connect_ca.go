@@ -535,15 +535,14 @@ func (c *CAManager) primaryInitialize(provider ca.Provider, conf *structs.CAConf
 		return err
 	}
 
+	var rootUpdateRequired bool
+	if len(rootCA.IntermediateCerts) > 0 {
+		rootUpdateRequired = true
+	}
 	// Add intermediates from current root if any as intermediates aren't
 	// directly tied to the provider.
 	if activeRoot != nil {
 		rootCA.IntermediateCerts = activeRoot.IntermediateCerts
-	}
-
-	var rootUpdateRequired bool
-	if len(rootCA.IntermediateCerts) > 0 {
-		rootUpdateRequired = true
 	}
 
 	if activeRoot != nil {
