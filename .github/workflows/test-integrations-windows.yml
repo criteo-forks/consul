@@ -1170,22 +1170,6 @@ jobs:
           go test -v -timeout=45m -tags integration \
             ./test/integration/connect/envoy -run="TestEnvoy/case-mesh-to-lambda" -win=true
 
-
-      - name: Prepare datadog-ci
-        shell: bash
-        if: ${{ !cancelled() && !endsWith(github.repository, '-enterprise') }}
-        run: |
-          curl -L --fail "https://github.com/DataDog/datadog-ci/releases/download/v2.17.2/datadog-ci_win-x64.exe" --output "C:/datadog-ci"
-          icacls C:/datadog-ci /grant:rx Everyone:RX
-
-      - name: Upload coverage
-        # do not run on forks
-        if: ${{ !cancelled() && github.event.pull_request.head.repo.full_name == github.repository }}
-        env:
-          DATADOG_API_KEY: "${{ endsWith(github.repository, '-enterprise') && env.DATADOG_API_KEY || secrets.DATADOG_API_KEY }}"
-          DD_ENV: ci
-        run: C:/datadog-ci junit upload --service "$GITHUB_REPOSITORY" $TEST_RESULTS_DIR/results.xml
-
   test-integrations-success:
     needs:
       - envoy-integration-test
