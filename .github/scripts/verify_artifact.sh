@@ -170,15 +170,6 @@ function verify_zip {
 
   case "${artifact_path}" in
 
-    *_darwin_amd64.zip)
-      if [[ "${machine_os}" = 'Darwin' ]]; then
-        # run the darwin binary if the host is Darwin.
-        ${SCRIPT_DIR}/verify_bin.sh ./consul ${expect_version}
-      else
-        echo "cannot run darwin binary on a non-darwin host (${machine_os})"
-      fi
-      ;;
-
     *_linux_386.zip | *_linux_amd64.zip)
       if [[ "${machine_os}" = 'Linux' && "${machine_arch}" = "x86_64" ]]; then
         # run the binary directly on the host when it's x86_64 Linux
