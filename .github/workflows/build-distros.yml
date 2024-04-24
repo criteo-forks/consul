@@ -25,16 +25,8 @@ jobs:
   setup:
     name: Setup
     runs-on: ubuntu-latest
-    outputs:
-      compute-small: ${{ steps.setup-outputs.outputs.compute-small }}
-      compute-medium: ${{ steps.setup-outputs.outputs.compute-medium }}
-      compute-large: ${{ steps.setup-outputs.outputs.compute-large }}
-      compute-xl: ${{ steps.setup-outputs.outputs.compute-xl }}
     steps:
     - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
-    - id: setup-outputs
-      name: Setup outputs
-      run: ./.github/scripts/get_runner_classes.sh
 
   get-go-version:
     uses: ./.github/workflows/reusable-get-go-version.yml
@@ -45,7 +37,7 @@ jobs:
     - get-go-version
     uses: ./.github/workflows/reusable-check-go-mod.yml
     with:
-      runs-on: ${{ needs.setup.outputs.compute-medium }}
+      runs-on: ubuntu-latest
       repository-name: ${{ github.repository }}
       go-version: ${{ needs.get-go-version.outputs.go-version }}
     secrets:
@@ -58,7 +50,7 @@ jobs:
     - check-go-mod
     env:
       XC_OS: "linux"
-    runs-on: ${{ fromJSON(needs.setup.outputs.compute-xl) }}
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
@@ -77,7 +69,7 @@ jobs:
     - setup
     - get-go-version
     - check-go-mod
-    runs-on: ${{ fromJSON(needs.setup.outputs.compute-xl) }}
+    runs-on: ubuntu-latest
     env:
       CGO_ENABLED: 1
       GOOS: linux
@@ -116,7 +108,7 @@ jobs:
     - check-go-mod
     - build-amd64
     - build-arm
-    runs-on: ${{ fromJSON(needs.setup.outputs.compute-small) }}
+    runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:
       - name: evaluate upstream job results
