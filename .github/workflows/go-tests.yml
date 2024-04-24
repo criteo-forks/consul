@@ -273,7 +273,6 @@ jobs:
     secrets:
       elevated-github-token: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
       consul-license: ${{secrets.CONSUL_LICENSE}}
-      datadog-api-key: "${{ !endsWith(github.repository, '-enterprise') && secrets.DATADOG_API_KEY || '' }}"
 
   go-test-32bit:
     needs:
@@ -295,7 +294,6 @@ jobs:
     secrets:
       elevated-github-token: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
       consul-license: ${{secrets.CONSUL_LICENSE}}
-      datadog-api-key: "${{ !endsWith(github.repository, '-enterprise') && secrets.DATADOG_API_KEY || '' }}"
 
   # go-test-s390x:
   #   if: ${{ endsWith(github.repository, '-enterprise') }}
@@ -337,7 +335,6 @@ jobs:
     secrets:
       elevated-github-token: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
       consul-license: ${{secrets.CONSUL_LICENSE}}
-      datadog-api-key: "${{ !endsWith(github.repository, '-enterprise') && secrets.DATADOG_API_KEY || '' }}"
 
   go-test-troubleshoot:
     needs:
@@ -356,7 +353,6 @@ jobs:
     secrets:
       elevated-github-token: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
       consul-license: ${{secrets.CONSUL_LICENSE}}
-      datadog-api-key: "${{ !endsWith(github.repository, '-enterprise') && secrets.DATADOG_API_KEY || '' }}"
 
   go-test-api-backwards-compatibility:
     name: go-test-api-${{ needs.get-go-version.outputs.go-version-previous }}
@@ -376,7 +372,6 @@ jobs:
     secrets:
       elevated-github-token: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
       consul-license: ${{secrets.CONSUL_LICENSE}}
-      datadog-api-key: "${{ !endsWith(github.repository, '-enterprise') && secrets.DATADOG_API_KEY || '' }}"
 
   go-test-api:
     needs:
@@ -395,7 +390,6 @@ jobs:
     secrets:
       elevated-github-token: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
       consul-license: ${{secrets.CONSUL_LICENSE}}
-      datadog-api-key: "${{ !endsWith(github.repository, '-enterprise') && secrets.DATADOG_API_KEY || '' }}"
 
   go-test-sdk-backwards-compatibility:
     name: go-test-sdk-${{ needs.get-go-version.outputs.go-version-previous }}
@@ -415,7 +409,6 @@ jobs:
     secrets:
       elevated-github-token: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
       consul-license: ${{secrets.CONSUL_LICENSE}}
-      datadog-api-key: "${{ !endsWith(github.repository, '-enterprise') && secrets.DATADOG_API_KEY || '' }}"
 
   go-test-sdk:
     needs:
@@ -434,7 +427,6 @@ jobs:
     secrets:
       elevated-github-token: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
       consul-license: ${{secrets.CONSUL_LICENSE}}
-      datadog-api-key: "${{ !endsWith(github.repository, '-enterprise') && secrets.DATADOG_API_KEY || '' }}"
 
   noop:
     runs-on: ubuntu-latest
