@@ -60,6 +60,3 @@ jobs:
           version: ${{ env.GOLANGCI_LINT_VERSION }}
           args: --build-tags="${{ env.GOTAGS }}" -v
           skip-cache: true
-      - name: Notify Slack
-        if: ${{ failure() }}
-        run: .github/scripts/notify_slack.sh

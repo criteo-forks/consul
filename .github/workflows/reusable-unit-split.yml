@@ -180,6 +180,3 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           .github/scripts/rerun_fails_report.sh /tmp/gotestsum-rerun-fails
-      - name: Notify Slack
-        if: ${{ failure() }}
-        run: .github/scripts/notify_slack.sh

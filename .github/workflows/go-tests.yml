@@ -100,9 +100,6 @@ jobs:
           fi
       - run: make proto-lint
         name: "Protobuf Lint"
-      - name: Notify Slack
-        if: ${{ failure() }}
-        run: .github/scripts/notify_slack.sh
   check-codegen:
     needs:
       - setup
@@ -123,9 +120,6 @@ jobs:
             echo "Generated code was not updated correctly"
             exit 1
           fi
-      - name: Notify Slack
-        if: ${{ failure() }}
-        run: .github/scripts/notify_slack.sh
 
   lint-enums:
     needs:
@@ -142,9 +136,6 @@ jobs:
         with:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
       - run: go install github.com/reillywatson/enumcover/cmd/enumcover@master && enumcover ./...
-      - name: Notify Slack
-        if: ${{ failure() }}
-        run: .github/scripts/notify_slack.sh
 
   lint-container-test-deps:
     needs:
@@ -160,9 +151,6 @@ jobs:
         with:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
       - run: make lint-container-test-deps
-      - name: Notify Slack
-        if: ${{ failure() }}
-        run: .github/scripts/notify_slack.sh
 
   lint-consul-retry:
     needs:
@@ -179,9 +167,6 @@ jobs:
         with:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
       - run: go install github.com/hashicorp/lint-consul-retry@v1.3.0 && lint-consul-retry
-      - name: Notify Slack
-        if: ${{ failure() }}
-        run: .github/scripts/notify_slack.sh
 
   lint:
     needs:
