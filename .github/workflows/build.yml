@@ -91,15 +91,8 @@ jobs:
     strategy:
       matrix:
         include:
-          - {goos: "linux", goarch: "386"}
           - {goos: "linux", goarch: "amd64"}
-          - {goos: "linux", goarch: "arm"}
           - {goos: "linux", goarch: "arm64"}
-          - {goos: "freebsd", goarch: "386"}
-          - {goos: "freebsd", goarch: "amd64"}
-          - {goos: "windows", goarch: "386"}
-          - {goos: "windows", goarch: "amd64"}
-          - {goos: "solaris", goarch: "amd64"}
       fail-fast: true
 
     name: Go ${{ needs.get-go-version.outputs.go-version }} ${{ matrix.goos }} ${{ matrix.goarch }} build
@@ -243,7 +236,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - { arch: "386" }
           - { arch: "arm" }
           - { arch: "amd64" }
           - { arch: "arm64" }
@@ -325,7 +317,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - { arch: "386" }
           - { arch: "arm" }
           - { arch: "amd64" }
           - { arch: "arm64" }
