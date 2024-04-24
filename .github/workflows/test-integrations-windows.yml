@@ -41,7 +41,7 @@ jobs:
     - get-go-version
     uses: ./.github/workflows/reusable-dev-build-windows.yml
     with:
-      runs-on: ${{ needs.setup.outputs.compute-large }}
+      runs-on: ubuntu-latest
       repository-name: ${{ github.repository }}
       uploaded-binary-name: 'consul.exe'
       go-version: ${{ needs.get-go-version.outputs.go-version }}
@@ -55,7 +55,7 @@ jobs:
       - setup
       - get-go-version
       - dev-build
-    runs-on: ${{ fromJSON(needs.setup.outputs.compute-large) }}
+    runs-on: ubuntu-latest
     permissions:
       id-token: write # NOTE: this permission is explicitly required for Vault auth.
       contents: read
@@ -1173,7 +1173,7 @@ jobs:
   test-integrations-success:
     needs:
       - envoy-integration-test
-    runs-on: 'ubuntu-latest'
+    runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:
       - name: evaluate upstream job results

@@ -47,7 +47,7 @@ jobs:
     - get-go-version
     uses: ./.github/workflows/reusable-dev-build.yml
     with:
-      runs-on: ${{ needs.setup.outputs.compute-large }}
+      runs-on: ubuntu-latest
       repository-name: ${{ github.repository }}
       uploaded-binary-name: 'consul-bin'
       go-version: ${{ needs.get-go-version.outputs.go-version }}
@@ -56,7 +56,7 @@ jobs:
 
   generate-envoy-job-matrices:
     needs: [setup]
-    runs-on: ${{ fromJSON(needs.setup.outputs.compute-small) }}
+    runs-on: ubuntu-latest
     name: Generate Envoy Job Matrices
     outputs:
       envoy-matrix: ${{ steps.set-matrix.outputs.envoy-matrix }}
@@ -94,7 +94,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
   
   envoy-integration-test:
-    runs-on: ${{ fromJSON(needs.setup.outputs.compute-large ) }}
+    runs-on: ubuntu-latest
     needs:
       - setup
       - get-go-version
@@ -158,7 +158,7 @@ jobs:
               -- -timeout=30m -tags integration -run="TestEnvoy/(${{ matrix.test-cases }})"
 
   upgrade-integration-test:
-    runs-on: ${{ fromJSON(needs.setup.outputs.compute-large ) }}
+    runs-on: ubuntu-latest
     needs:
       - setup
       - get-go-version
@@ -254,7 +254,7 @@ jobs:
           TERM: ansi
 
   peering_commontopo-integration-test:
-    runs-on: ${{ fromJSON(needs.setup.outputs.compute-large ) }}
+    runs-on: ubuntu-latest
     needs:
       - setup
       - get-go-version
@@ -317,7 +317,7 @@ jobs:
 
 
   upgrade-integration-test-deployer:
-    runs-on: ${{ fromJSON(needs.setup.outputs.compute-large ) }}
+    runs-on: ubuntu-latest
     needs:
       - setup
       - get-go-version
@@ -384,7 +384,7 @@ jobs:
     - upgrade-integration-test
     - upgrade-integration-test-deployer
     - peering_commontopo-integration-test
-    runs-on: ${{ fromJSON(needs.setup.outputs.compute-small) }}
+    runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:
       - name: evaluate upstream job results

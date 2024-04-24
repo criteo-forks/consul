@@ -52,7 +52,7 @@ jobs:
     needs:
     - setup
     - get-go-version
-    runs-on: ${{ fromJSON(needs.setup.outputs.compute-xl) }}
+    runs-on: ubuntu-latest
     # The first check ensures this doesn't run on community-contributed PRs, who
     # won't have the permissions to run this job.
     if: ${{ (github.repository != 'hashicorp/consul' || (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name))

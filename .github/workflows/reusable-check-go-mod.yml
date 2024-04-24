@@ -18,7 +18,7 @@ on:
         required: true
 jobs:
   check-go-mod:
-    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3

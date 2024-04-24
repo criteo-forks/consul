@@ -68,7 +68,7 @@ jobs:
         run: ./.github/scripts/set_test_package_matrix.sh ${{env.TOTAL_RUNNERS}}
 
   go-test:
-    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    runs-on: ubuntu-latest
     name: "go-test"
     needs:
       - set-test-package-matrix
