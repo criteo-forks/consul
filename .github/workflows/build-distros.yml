@@ -78,7 +78,7 @@ jobs:
     - get-go-version
     - check-go-mod
     env:
-      XC_OS: "darwin freebsd linux solaris windows"
+      XC_OS: "freebsd linux solaris windows"
     runs-on: ${{ fromJSON(needs.setup.outputs.compute-xl) }}
     steps:
     - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
