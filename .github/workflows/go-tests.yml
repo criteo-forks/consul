@@ -176,19 +176,6 @@ jobs:
     secrets:
       elevated-github-token: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
 
-  lint-32bit:
-    needs:
-      - setup
-      - get-go-version
-    uses: ./.github/workflows/reusable-lint.yml
-    with:
-      go-arch: "386"
-      runs-on: ${{ needs.setup.outputs.compute-large }}
-      repository-name: ${{ github.repository }}
-      go-version: ${{ needs.get-go-version.outputs.go-version }}
-    secrets:
-      elevated-github-token: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
-
   # create a development build
   dev-build:
     needs:
@@ -201,58 +188,6 @@ jobs:
       go-version: ${{ needs.get-go-version.outputs.go-version }}
     secrets:
       elevated-github-token: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
-
-  # dev-build-s390x:
-  #   if: ${{ endsWith(github.repository, '-enterprise') }}
-  #   needs:
-  #   - setup
-  #   - get-go-version
-  #   uses: ./.github/workflows/reusable-dev-build.yml
-  #   with:
-  #     uploaded-binary-name: 'consul-bin-s390x'
-  #     runs-on: ${{ needs.setup.outputs.compute-large }}
-  #     go-arch: "s390x"
-  #     go-version: ${{ needs.get-go-version.outputs.go-version }}
-  #     repository-name: ${{ github.repository }}
-  #   secrets:
-  #     elevated-github-token: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
-
-  # dev-build-arm64:
-  #   # only run on enterprise because GHA does not have arm64 runners in CE
-  #   if: ${{ endsWith(github.repository, '-enterprise') }}
-  #   needs:
-  #   - setup
-  #   - get-go-version
-  #   uses: ./.github/workflows/reusable-dev-build.yml
-  #   with:
-  #     uploaded-binary-name: 'consul-bin-arm64'
-  #     runs-on: ${{ needs.setup.outputs.compute-large }}
-  #     go-arch: "arm64"
-  #     go-version: ${{ needs.get-go-version.outputs.go-version }}
-  #     repository-name: ${{ github.repository }}
-  #   secrets:
-  #     elevated-github-token: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
-
-  # go-test-arm64:
-  #   # only run on enterprise because GHA does not have arm64 runners in CE
-  #   if: ${{ endsWith(github.repository, '-enterprise') }}
-  #   needs:
-  #   - setup
-  #   - get-go-version
-  #   - dev-build-arm64
-  #   uses: ./.github/workflows/reusable-unit-split.yml
-  #   with:
-  #     directory: .
-  #     uploaded-binary-name: 'consul-bin-arm64'
-  #     runner-count: 12
-  #     runs-on: "['self-hosted', 'ondemand', 'os=macos-arm', 'arm64']"
-  #     go-test-flags: 'if ! [[ "$GITHUB_REF_NAME" =~ ^main$|^release/ ]]; then export GO_TEST_FLAGS="-short"; fi'
-  #     go-version: ${{ needs.get-go-version.outputs.go-version }}
-  #     repository-name: ${{ github.repository }}
-  #   secrets:
-  #     elevated-github-token: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
-  #     consul-license: ${{secrets.CONSUL_LICENSE}}
-  #     datadog-api-key: "${{ !endsWith(github.repository, '-enterprise') && secrets.DATADOG_API_KEY || '' }}"
 
   go-test-race:
     needs:
@@ -273,50 +208,6 @@ jobs:
     secrets:
       elevated-github-token: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
       consul-license: ${{secrets.CONSUL_LICENSE}}
-
-  go-test-32bit:
-    needs:
-      - setup
-      - get-go-version
-      - dev-build
-    uses: ./.github/workflows/reusable-unit.yml
-    with:
-      directory: .
-      go-arch: "386"
-      go-test-flags: 'export GO_TEST_FLAGS="-short"'
-      runs-on: ${{ needs.setup.outputs.compute-large }}
-      repository-name: ${{ github.repository }}
-      go-tags: "${{ github.event.repository.name == 'consul-enterprise' && 'consulent consulprem consuldev' || '' }}"
-      go-version: ${{ needs.get-go-version.outputs.go-version }}
-    permissions:
-      id-token: write # NOTE: this permission is explicitly required for Vault auth.
-      contents: read
-    secrets:
-      elevated-github-token: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
-      consul-license: ${{secrets.CONSUL_LICENSE}}
-
-  # go-test-s390x:
-  #   if: ${{ endsWith(github.repository, '-enterprise') }}
-  #   needs:
-  #   - setup
-  #   - get-go-version
-  #   - dev-build-s390x
-  #   uses: ./.github/workflows/reusable-unit.yml
-  #   with:
-  #     uploaded-binary-name: 'consul-bin-s390x'
-  #     directory: .
-  #     go-test-flags: 'export GO_TEST_FLAGS="-short"'
-  #     runs-on: ${{ needs.setup.outputs.compute-large }}
-  #     repository-name: ${{ github.repository }}
-  #     go-tags: "${{ github.event.repository.name == 'consul-enterprise' && 'consulent consulprem consuldev' || '' }}"
-  #     go-version: ${{ needs.get-go-version.outputs.go-version }}
-  #   permissions:
-  #     id-token: write # NOTE: this permission is explicitly required for Vault auth.
-  #     contents: read
-  #   secrets:
-  #     elevated-github-token: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
-  #     consul-license: ${{secrets.CONSUL_LICENSE}}
-  #     datadog-api-key: "${{ !endsWith(github.repository, '-enterprise') && secrets.DATADOG_API_KEY || '' }}"
 
   go-test-envoyextensions:
     needs:
@@ -458,8 +349,6 @@ jobs:
       - lint-container-test-deps
       - lint-enums
       - lint
-      - lint-32bit
-      # - go-test-arm64
       - go-test-race
       - go-test-envoyextensions
       - go-test-troubleshoot
@@ -467,8 +356,6 @@ jobs:
       - go-test-api
       - go-test-sdk-backwards-compatibility
       - go-test-sdk
-      - go-test-32bit
-    # - go-test-s390x
     runs-on: ${{ fromJSON(needs.setup.outputs.compute-small) }}
     if: always() && needs.conditional-skip.outputs.skip-ci != 'true'
     steps:
