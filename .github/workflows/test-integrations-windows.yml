@@ -1171,24 +1171,6 @@ jobs:
             ./test/integration/connect/envoy -run="TestEnvoy/case-mesh-to-lambda" -win=true
 
 
-        # NOTE: ENT specific step as we store secrets in Vault.
-      - name: Authenticate to Vault
-        if: ${{ !cancelled() && endsWith(github.repository, '-enterprise') }}
-        id: vault-auth
-        run: vault-auth
-
-      # NOTE: ENT specific step as we store secrets in Vault.
-      - name: Fetch Secrets
-        if: ${{ !cancelled() && endsWith(github.repository, '-enterprise') }}
-        id: secrets
-        uses: hashicorp/vault-action@v2.5.0
-        with:
-          url: ${{ steps.vault-auth.outputs.addr }}
-          caCertificate: ${{ steps.vault-auth.outputs.ca_certificate }}
-          token: ${{ steps.vault-auth.outputs.token }}
-          secrets: |
-            kv/data/github/${{ github.repository }}/datadog apikey | DATADOG_API_KEY;
-
       - name: Prepare datadog-ci
         shell: bash
         if: ${{ !cancelled() && !endsWith(github.repository, '-enterprise') }}
