@@ -2237,7 +2237,7 @@ func TestACLEndpoint_TemplatedPolicySet_UnknownTemplateName(t *testing.T) {
 	_, srv, _ := testACLServerWithConfig(t, nil, false)
 	waitForLeaderEstablishment(t, srv)
 
-	aclEp := ACL{srv: srv}
+	aclEp := ACL{srv: srv, logger: testutil.Logger(t)}
 
 	t.Run("unknown template name", func(t *testing.T) {
 		req := structs.ACLTokenSetRequest{
