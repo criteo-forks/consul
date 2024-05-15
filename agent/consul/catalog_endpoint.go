@@ -6,6 +6,7 @@ package consul
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -257,6 +258,72 @@ func servicePreApply(service *structs.NodeService, authz resolver.Result, authzC
 		}
 	}
 
+	// Ensure typical services have an RFC 1035 compliant name
+	if service.Kind == structs.ServiceKindTypical {
+		if err := validateServiceName(service.Service); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+const MaxLabelLength = 63
+
+var (
+	DnsLabelRegex = regexp.MustCompile("^[a-z0-9-]*$")
+)
+
+var DNS_LABEL_VALIDATORS = []func(string) error{
+	func(s string) error {
+		if len(s) == 0 {
+			return fmt.Errorf("'%s' : label must have at least one character", s)
+		}
+		return nil
+	},
+	func(s string) error {
+		if len(s) > MaxLabelLength {
+			return fmt.Errorf("'%s' : label exceeds maximum length of %d characters", s, MaxLabelLength)
+		}
+		return nil
+	},
+	func(s string) error {
+		if s[0] == '-' {
+			return fmt.Errorf("'%s' : label must not start with a dash", s)
+		}
+		return nil
+	},
+	func(s string) error {
+		if s[len(s)-1] == '-' {
+			return fmt.Errorf("'%s' : label must not end with a dash", s)
+		}
+		return nil
+	},
+	func(s string) error {
+		if strings.Contains(s, ".") {
+			return fmt.Errorf("'%s' : label must not contain dots", s)
+		}
+		return nil
+	},
+	func(s string) error {
+		if strings.Contains(s, "_") {
+			return fmt.Errorf("'%s' : label must not contain underscores", s)
+		}
+		return nil
+	},
+	func(s string) error {
+		if !DnsLabelRegex.MatchString(s) {
+			return fmt.Errorf("'%s' : label contains unauthorized characters", s)
+		}
+		return nil
+	},
+}
+
+func validateServiceName(serviceName string) error {
+	for _, validator := range DNS_LABEL_VALIDATORS {
+		if err := validator(serviceName); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

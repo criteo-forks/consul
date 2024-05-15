@@ -98,6 +98,97 @@ func TestCatalog_RegisterService_InvalidAddress(t *testing.T) {
 	}
 }
 
+func TestCatalog_RegisterService_InvalidName(t *testing.T) {
+	if testing.Short() {
+		t.Skip("too slow for testing.Short")
+	}
+
+	t.Parallel()
+	dir1, s1 := testServer(t)
+	defer os.RemoveAll(dir1)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	defer codec.Close()
+	testCases := []struct {
+		name          string
+		serviceName   string
+		expectedError string
+	}{
+		{"empty service name", "", "label must have at least one character"},
+		{"too long service name", "tooooooooooooooooooooooooooooooooooooooooooooooooooooooooooolong", "label exceeds maximum length of 63 characters"},
+		{"starts with dash", "-invalid", "label must not start with a dash"},
+		{"ends with dash", "invalid-", "label must not end with a dash"},
+		{"contains dot", "invalid.service", "label must not contain dots"},
+		{"contains underscore", "invalid_service", "label must not contain underscores"},
+		{"unauthorized characters1", "invalid@service", "label contains unauthorized characters"},
+		{"unauthorized characters2", "Invalid-Service", "label contains unauthorized characters"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			arg := structs.RegisterRequest{
+				Datacenter: "dc1",
+				Node:       "foo",
+				Address:    "127.0.0.1",
+				Service: &structs.NodeService{
+					Service: tc.serviceName,
+					Port:    8000,
+				},
+			}
+			var out struct{}
+
+			err := msgpackrpc.CallWithCodec(codec, "Catalog.Register", &arg, &out)
+			if err == nil || !strings.Contains(err.Error(), tc.expectedError) {
+				t.Fatalf("got error %v want %q", err, tc.expectedError)
+			}
+		})
+	}
+}
+func TestCatalog_RegisterService_ValidName(t *testing.T) {
+	if testing.Short() {
+		t.Skip("too slow for testing.Short")
+	}
+
+	t.Parallel()
+	dir1, s1 := testServer(t)
+	defer os.RemoveAll(dir1)
+	defer s1.Shutdown()
+	codec := rpcClient(t, s1)
+	defer codec.Close()
+
+	// Define test cases for valid service names
+	testCases := []struct {
+		name        string
+		serviceName string
+	}{
+		{"min length", "a"},
+		{"max length", "a12345678901234567890123456789012345678901234567890123456789012"},
+		{"contains dash", "valid-service-name"},
+		{"contains numbers", "service123name"},
+		{"mixed characters", "service---123azs--77x"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			arg := structs.RegisterRequest{
+				Datacenter: "dc1",
+				Node:       "foo",
+				Address:    "127.0.0.1",
+				Service: &structs.NodeService{
+					Service: tc.serviceName,
+					Port:    8000,
+				},
+			}
+			var out struct{}
+
+			err := msgpackrpc.CallWithCodec(codec, "Catalog.Register", &arg, &out)
+			if err != nil {
+				t.Fatalf("got error %v want nil", err)
+			}
+		})
+	}
+}
+
 func TestCatalog_RegisterService_SkipNodeUpdate(t *testing.T) {
 	if testing.Short() {
 		t.Skip("too slow for testing.Short")
