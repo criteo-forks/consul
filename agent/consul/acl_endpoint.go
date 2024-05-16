@@ -1470,8 +1470,9 @@ func (a *ACL) RoleSet(args *structs.ACLRoleSetRequest, reply *structs.ACLRole) e
 		}
 
 		if existing.Name != role.Name {
-			nameMatch := &structs.ACLRole{}
-			if _, nameMatch, err = state.ACLRoleGetByName(nil, role.Name, &role.EnterpriseMeta); err != nil {
+			var nameMatch *structs.ACLRole
+			_, nameMatch, err = state.ACLRoleGetByName(nil, role.Name, &role.EnterpriseMeta)
+			if err != nil {
 				err = fmt.Errorf("acl role lookup by name failed: %v", err)
 				return err
 			} else if nameMatch != nil {
@@ -1492,7 +1493,7 @@ func (a *ACL) RoleSet(args *structs.ACLRoleSetRequest, reply *structs.ACLRole) e
 	// Validate all the policy names and convert them to policy IDs
 	for _, link := range role.Policies {
 		if link.ID == "" {
-			policy := &structs.ACLPolicy{}
+			var policy *structs.ACLPolicy
 			_, policy, err = state.ACLPolicyGetByName(nil, link.Name, &role.EnterpriseMeta)
 			if err != nil {
 				err = fmt.Errorf("Error looking up policy for name %q: %v", link.Name, err)
