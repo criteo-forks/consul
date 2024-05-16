@@ -70,7 +70,7 @@ type HealthView struct {
 
 // Update implements View
 func (s *HealthView) Update(events []*pbsubscribe.Event) error {
-        s.knownLeader = true
+	s.knownLeader = true
 	for _, event := range events {
 		serviceHealth := event.GetServiceHealth()
 		if serviceHealth == nil {
@@ -216,7 +216,7 @@ func (s *HealthView) Result(index uint64) interface{} {
 }
 
 func (s *HealthView) Reset() {
-        s.knownLeader = false
+	s.knownLeader = false
 	s.state = make(map[string]structs.CheckServiceNode)
 }
 
