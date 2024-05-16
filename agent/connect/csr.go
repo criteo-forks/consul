@@ -99,26 +99,26 @@ func CreateCACSR(uri CertURI, commonName string, privateKey crypto.Signer) (stri
 	if err != nil {
 		return "", err
 	}
-        template := &x509.CertificateRequest{
-                URIs:               []*url.URL{uri.URI()},
-                SignatureAlgorithm: SigAlgoForKey(privateKey),
-                ExtraExtensions:    []pkix.Extension{ext},
+	template := &x509.CertificateRequest{
+		URIs:               []*url.URL{uri.URI()},
+		SignatureAlgorithm: SigAlgoForKey(privateKey),
+		ExtraExtensions:    []pkix.Extension{ext},
 		Subject:            pkix.Name{CommonName: commonName},
-        }
+	}
 
-        // Create the CSR itself
-        var csrBuf bytes.Buffer
-        bs, err := x509.CreateCertificateRequest(rand.Reader, template, privateKey)
-        if err != nil {
-                return "", err
-        }
+	// Create the CSR itself
+	var csrBuf bytes.Buffer
+	bs, err := x509.CreateCertificateRequest(rand.Reader, template, privateKey)
+	if err != nil {
+		return "", err
+	}
 
-        err = pem.Encode(&csrBuf, &pem.Block{Type: "CERTIFICATE REQUEST", Bytes: bs})
-        if err != nil {
-                return "", err
-        }
+	err = pem.Encode(&csrBuf, &pem.Block{Type: "CERTIFICATE REQUEST", Bytes: bs})
+	if err != nil {
+		return "", err
+	}
 
-        return csrBuf.String(), nil
+	return csrBuf.String(), nil
 }
 
 // CreateCAExtension creates a pkix.Extension for the x509 Basic Constraints
