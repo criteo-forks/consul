@@ -174,26 +174,6 @@ jobs:
     secrets:
       elevated-github-token: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
 
-  go-test-ce:
-    needs:
-      - setup
-      - get-go-version
-      - dev-build
-    uses: ./.github/workflows/reusable-unit-split.yml
-    with:
-      directory: .
-      runner-count: 12
-      runs-on: ubuntu-latest
-      repository-name: ${{ github.repository }}
-      go-tags: ""
-      go-version: ${{ needs.get-go-version.outputs.go-version }}
-    permissions:
-      id-token: write # NOTE: this permission is explicitly required for Vault auth.
-      contents: read
-    secrets:
-      elevated-github-token: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
-      consul-license: ${{secrets.CONSUL_LICENSE}}
-
   go-test-race:
     needs:
       - setup
@@ -206,7 +186,6 @@ jobs:
       package-names-command: "go list ./... | grep -E -v '^github.com/hashicorp/consul/agent(/consul|/local|/routine-leak-checker)?$' | grep -E -v '^github.com/hashicorp/consul(/command|/connect|/snapshot)'"
       runs-on: ubuntu-latest
       repository-name: ${{ github.repository }}
-      go-tags: "${{ github.event.repository.name == 'consul-enterprise' && 'consulent consulprem consuldev' || '' }}"
       go-version: ${{ needs.get-go-version.outputs.go-version }}
     permissions:
       id-token: write # NOTE: this permission is explicitly required for Vault auth.
@@ -225,7 +204,6 @@ jobs:
       directory: envoyextensions
       runs-on: ubuntu-latest
       repository-name: ${{ github.repository }}
-      go-tags: "${{ github.event.repository.name == 'consul-enterprise' && 'consulent consulprem consuldev' || '' }}"
       go-version: ${{ needs.get-go-version.outputs.go-version }}
     permissions:
       id-token: write # NOTE: this permission is explicitly required for Vault auth.
@@ -244,7 +222,6 @@ jobs:
       directory: troubleshoot
       runs-on: ubuntu-latest
       repository-name: ${{ github.repository }}
-      go-tags: "${{ github.event.repository.name == 'consul-enterprise' && 'consulent consulprem consuldev' || '' }}"
       go-version: ${{ needs.get-go-version.outputs.go-version }}
     permissions:
       id-token: write # NOTE: this permission is explicitly required for Vault auth.
@@ -264,7 +241,6 @@ jobs:
       directory: api
       runs-on: ubuntu-latest
       repository-name: ${{ github.repository }}
-      go-tags: "${{ github.event.repository.name == 'consul-enterprise' && 'consulent consulprem consuldev' || '' }}"
       go-version: ${{ needs.get-go-version.outputs.go-version-previous }}
     permissions:
       id-token: write # NOTE: this permission is explicitly required for Vault auth.
@@ -283,7 +259,6 @@ jobs:
       directory: api
       runs-on: ubuntu-latest
       repository-name: ${{ github.repository }}
-      go-tags: "${{ github.event.repository.name == 'consul-enterprise' && 'consulent consulprem consuldev' || '' }}"
       go-version: ${{ needs.get-go-version.outputs.go-version }}
     permissions:
       id-token: write # NOTE: this permission is explicitly required for Vault auth.
@@ -303,7 +278,6 @@ jobs:
       directory: sdk
       runs-on: ubuntu-latest
       repository-name: ${{ github.repository }}
-      go-tags: "${{ github.event.repository.name == 'consul-enterprise' && 'consulent consulprem consuldev' || '' }}"
       go-version: ${{ needs.get-go-version.outputs.go-version-previous }}
     permissions:
       id-token: write # NOTE: this permission is explicitly required for Vault auth.
@@ -322,7 +296,6 @@ jobs:
       directory: sdk
       runs-on: ubuntu-latest
       repository-name: ${{ github.repository }}
-      go-tags: "${{ github.event.repository.name == 'consul-enterprise' && 'consulent consulprem consuldev' || '' }}"
       go-version: ${{ needs.get-go-version.outputs.go-version }}
     permissions:
       id-token: write # NOTE: this permission is explicitly required for Vault auth.
@@ -362,7 +335,6 @@ jobs:
       - lint-enums
       - lint
       # - go-test-arm64
-      - go-test-ce
       - go-test-race
       - go-test-envoyextensions
       - go-test-troubleshoot
