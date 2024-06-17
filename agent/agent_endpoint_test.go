@@ -3468,6 +3468,14 @@ func testAgent_RegisterService(t *testing.T, extraHCL string) {
 	if http.StatusOK != resp.Code {
 		t.Fatalf("expected 200 but got %v", resp.Code)
 	}
+	args.Name = "fail_service_name"
+	req, _ = http.NewRequest("PUT", "/v1/agent/service/register", jsonReader(args))
+	req.Header.Add("X-Consul-Token", "abc123")
+	a.srv.h.ServeHTTP(resp, req)
+	// check that the body contains the error message
+	if http.StatusInternalServerError != resp.Code && !strings.Contains(resp.Body.String(), "service name is invalid") {
+		t.Fatalf("expected 500 but got %v %v", resp.Code, resp.Body)
+	}
 
 	// Ensure the service
 	sid := structs.NewServiceID("test", nil)
