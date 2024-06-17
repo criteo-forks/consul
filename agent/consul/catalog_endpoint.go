@@ -6,6 +6,7 @@ package consul
 import (
 	"errors"
 	"fmt"
+	"github.com/hashicorp/consul/agent/dns"
 	"sort"
 	"strings"
 	"time"
@@ -229,7 +230,10 @@ func servicePreApply(service *structs.NodeService, authz resolver.Result, authzC
 	if service.ID != "" && service.Service == "" {
 		return fmt.Errorf("Must provide service name (Service.Service) when service ID is provided")
 	}
-
+	// Reject if the service name is incompatible with DNS
+	if dns.InvalidNameRe.MatchString(service.Service) {
+		return fmt.Errorf("Service name %s contains invalid characters. Valid characters include all alpha-numerics and dashes.", service.Service)
+	}
 	// Check the service address here and in the agent endpoint
 	// since service registration isn't synchronous.
 	if ipaddr.IsAny(service.Address) {

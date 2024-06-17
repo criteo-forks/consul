@@ -2662,13 +2662,10 @@ func (a *Agent) validateService(service *structs.NodeService, chkTypes []*struct
 		service.Weights = &structs.Weights{Passing: 1, Warning: 1}
 	}
 
-	// Warn if the service name is incompatible with DNS
+	// Reject if the service name is incompatible with DNS
 	if dns.InvalidNameRe.MatchString(service.Service) {
-		a.logger.Warn("Service name will not be discoverable "+
-			"via DNS due to invalid characters. Valid characters include "+
-			"all alpha-numerics and dashes.",
-			"service", service.Service,
-		)
+		return fmt.Errorf("Service name %s contains invalid characters. Valid characters include all alpha-numerics and dashes.", service.Service)
+
 	} else if len(service.Service) > dns.MaxLabelLength {
 		a.logger.Warn("Service name will not be discoverable "+
 			"via DNS due to it being too long. Valid lengths are between "+
@@ -2677,14 +2674,10 @@ func (a *Agent) validateService(service *structs.NodeService, chkTypes []*struct
 		)
 	}
 
-	// Warn if any tags are incompatible with DNS
+	// Reject if any tags are incompatible with DNS
 	for _, tag := range service.Tags {
 		if dns.InvalidNameRe.MatchString(tag) {
-			a.logger.Debug("Service tag will not be discoverable "+
-				"via DNS due to invalid characters. Valid characters include "+
-				"all alpha-numerics and dashes.",
-				"tag", tag,
-			)
+			return fmt.Errorf("Service tag %s contains invalid characters. Valid characters include all alpha-numerics and dashes.", tag)
 		} else if len(tag) > dns.MaxLabelLength {
 			a.logger.Debug("Service tag will not be discoverable "+
 				"via DNS due to it being too long. Valid lengths are between "+
