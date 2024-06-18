@@ -51,38 +51,13 @@ jobs:
     secrets:
       elevated-github-token: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
 
-  build-386:
-    needs:
-    - setup
-    - get-go-version
-    - check-go-mod
-    env:
-      XC_OS: "freebsd linux windows"
-    runs-on: ${{ fromJSON(needs.setup.outputs.compute-xl) }}
-    steps:
-    - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
-
-    # NOTE: This step is specifically needed for ENT. It allows us to access the required private HashiCorp repos.
-    - name: Setup Git
-      if: ${{ endsWith(github.repository, '-enterprise') }}
-      run: git config --global url."https://${{ secrets.ELEVATED_GITHUB_TOKEN }}:@github.com".insteadOf "https://github.com"
-
-    - uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491 # v5.0.0
-      with:
-        go-version: ${{ needs.get-go-version.outputs.go-version }}
-    - name: Build
-      run: |
-        for os in $XC_OS; do
-          GOOS="$os" GOARCH=386 CGO_ENABLED=0 go build -tags "${{ env.GOTAGS }}"
-        done
-
   build-amd64:
     needs:
     - setup
     - get-go-version
     - check-go-mod
     env:
-      XC_OS: "darwin freebsd linux solaris windows"
+      XC_OS: "linux windows"
     runs-on: ${{ fromJSON(needs.setup.outputs.compute-xl) }}
     steps:
     - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
@@ -167,7 +142,6 @@ jobs:
     needs:
     - setup
     - check-go-mod
-    - build-386
     - build-amd64
     - build-arm
     - build-s390x
