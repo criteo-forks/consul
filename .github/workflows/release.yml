@@ -1,0 +1,153 @@
+name: create-release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*-criteo*'
+
+permissions:
+  contents: write
+
+env:
+  PKG_NAME: consul
+  METADATA: oss
+
+jobs:
+  get-go-version:
+    uses: ./.github/workflows/reusable-get-go-version.yml
+
+  set-product-version:
+    runs-on: ubuntu-latest
+    outputs:
+      product-version: ${{ steps.set-product-version.outputs.product-version }}
+      base-product-version: ${{ steps.set-product-version.outputs.base-product-version }}
+      product-date: ${{ steps.get-product-version.outputs.product-date }}
+      pre-version: ${{ steps.set-product-version.outputs.prerelease-product-version }}
+      shared-ldflags: ${{ steps.shared-ldflags.outputs.shared-ldflags }}
+    steps:
+      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+      # action-set-product-version implicitly sets fields like 'product-version' using version/VERSION
+      # https://github.com/hashicorp/actions-set-product-version
+      - name: set product version
+        id: set-product-version
+        uses: hashicorp/actions-set-product-version@v2
+      - name: get product version
+        id: get-product-version
+        run: |
+          CONSUL_DATE=$(build-support/scripts/build-date.sh)
+          echo "product-date=${CONSUL_DATE}" >> "$GITHUB_OUTPUT"
+
+      - name: Set shared -ldflags
+        id: shared-ldflags
+        run: |
+          T="github.com/hashicorp/consul/version"
+          echo "shared-ldflags=-X ${T}.GitCommit=${GITHUB_SHA::8} \
+          -X ${T}.GitDescribe=${{ steps.set-product-version.outputs.product-version }} \
+          -X ${T}.BuildDate=${{ steps.get-product-version.outputs.product-date }} \
+          -X ${T}.VersionPrerelease=${{ steps.set-product-version.outputs.pre-version }} \
+          " >> "$GITHUB_OUTPUT"
+  validate-outputs:
+    needs: set-product-version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate Outputs
+        run: |
+          echo "Product Version: ${{ needs.set-product-version.outputs.product-version }}"
+          echo "Base Product Version: ${{ needs.set-product-version.outputs.base-product-version }}"
+          echo "Product Metadata: ${{ env.METADATA }}"
+          echo "Product Date: ${{ needs.set-product-version.outputs.product-date }}"
+          echo "Prerelease Version: ${{ needs.set-product-version.outputs.pre-version }}"
+          echo "Ldflags: ${{ needs.set-product-version.outputs.shared-ldflags }}"
+
+  generate-metadata-file:
+    needs: set-product-version
+    runs-on: ubuntu-latest
+    outputs:
+      filepath: ${{ steps.generate-metadata-file.outputs.filepath }}
+    steps:
+      - name: 'Checkout directory'
+        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+      - name: Generate metadata file
+        id: generate-metadata-file
+        uses: hashicorp/actions-generate-metadata@v1
+        with:
+          version: ${{ needs.set-product-version.outputs.product-version }}
+          product: ${{ env.PKG_NAME }}
+
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: metadata.json
+          path: ${{ steps.generate-metadata-file.outputs.filepath }}
+
+  build:
+    needs:
+      - set-product-version
+      - get-go-version
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - {goos: "linux", goarch: "amd64"}
+          - {goos: "linux", goarch: "arm64"}
+          - {goos: "windows", goarch: "amd64"}
+      fail-fast: true
+
+    name: Go ${{ needs.get-go-version.outputs.go-version }} ${{ matrix.goos }} ${{ matrix.goarch }} build
+    steps:
+      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+
+      - name: Go Build
+        env:
+          PRODUCT_VERSION: ${{ needs.set-product-version.outputs.product-version }}
+          PRERELEASE_VERSION: ${{ needs.set-product-version.outputs.pre-version }}
+          CGO_ENABLED: "0"
+          GOLDFLAGS: "${{needs.set-product-version.outputs.shared-ldflags}}"
+        run: |
+          mkdir -p ./out
+          BINARY_NAME="consul${{ matrix.goos == 'windows' && '.exe' || '' }}"
+          ARCHIVE_EXTENSION=${{ matrix.goos == 'windows' && 'zip' || 'tar.gz' }}
+          ARCHIVE_GOARCH="-${{ matrix.goarch }}"
+          if [ "${{ matrix.goarch }}" == "amd64" ]; then
+            ARCHIVE_GOARCH=""
+          fi
+          ARCHIVE_NAME="consul-v${{ needs.set-product-version.outputs.product-version }}-${{ matrix.goos }}${ARCHIVE_GOARCH}.${ARCHIVE_EXTENSION}"
+          
+          if [ "${{ matrix.goarch }}" == "arm64" ]; then
+            export CC=aarch64-linux-gnu-gcc
+          fi
+
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -ldflags="$GOLDFLAGS" -o ./out/$BINARY_NAME
+
+          if [ "${{ matrix.goos }}" == "windows" ]; then
+            zip -j ./out/$ARCHIVE_NAME ./out/$BINARY_NAME
+          else
+            tar -czvf ./out/$ARCHIVE_NAME -C ./out $BINARY_NAME
+          fi
+          rm -f ./out/$BINARY_NAME
+          echo "output files : " && find ./out
+
+          echo "archive_name=${ARCHIVE_NAME}"  >> $GITHUB_ENV
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.archive_name }}
+          path: ./out/${{ env.archive_name }}
+
+
+  create-release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/**
