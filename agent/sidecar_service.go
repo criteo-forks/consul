@@ -136,7 +136,7 @@ func sidecarServiceFromNodeService(ns *structs.NodeService, token string) (*stru
 	if (sidecar.Weights == nil || sidecar.Weights.Passing == 1 && sidecar.Weights.Warning == 1) && ns.Weights != nil {
 		sidecar.Weights = ns.Weights
 	}
-	
+
 	// Setup checks
 	checks, err := ns.Connect.SidecarService.CheckTypes()
 	if err != nil {
@@ -228,14 +228,14 @@ func sidecarDefaultChecks(sidecarID string, sidecarAddress string, proxyServiceA
 	serviceID := serviceIDFromSidecarID(sidecarID)
 	return []*structs.CheckType{
 		{
-			Name:     "Connect Sidecar Listening",
-			TCP:      ipaddr.FormatAddressPort(checkAddress, port),
-			Interval: 10 * time.Second,
+			Name:                           "Connect Sidecar Listening",
+			TCP:                            ipaddr.FormatAddressPort(checkAddress, port),
+			Interval:                       10 * time.Second,
 			DeregisterCriticalServiceAfter: deregisterCriticalServiceAfter,
 		},
 		{
-			Name:         "Connect Sidecar Aliasing " + serviceID,
-			AliasService: serviceID,
+			Name:                           "Connect Sidecar Aliasing " + serviceID,
+			AliasService:                   serviceID,
 			DeregisterCriticalServiceAfter: deregisterCriticalServiceAfter,
 		},
 	}
