@@ -104,12 +104,29 @@ jobs:
           GOLDFLAGS: "${{needs.set-product-version.outputs.shared-ldflags}}"
         run: |
           mkdir -p ./out
-          go build -ldflags="$GOLDFLAGS" -o ./out/consul_${{ matrix.goos }}_${{ matrix.goarch }}${{ matrix.goos == 'windows' && '.exe' || '' }}
+          BINARY_NAME="consul${{ matrix.goos == 'windows' && '.exe' || '' }}"
+          ARCHIVE_EXTENSION=${{ matrix.goos == 'windows' && 'zip' || 'tar.gz' }}
+          ARCHIVE_GOARCH="-${{ matrix.goarch }}"
+          if [ "${{ matrix.goarch }}" == "amd64" ]; then
+            ARCHIVE_GOARCH=""
+          fi
+          ARCHIVE_NAME="consul-${{ needs.set-product-version.outputs.product-version }}-${{ matrix.goos }}${ARCHIVE_GOARCH}.${ARCHIVE_EXTENSION}"
+          go build -ldflags="$GOLDFLAGS" -o ./out/$BINARY_NAME
+          if [ "${{ matrix.goos }}" == "windows" ]; then
+            zip -j ./out/$ARCHIVE_NAME ./out/$BINARY_NAME
+          else
+            tar -czvf ./out/$ARCHIVE_NAME -C ./out $BINARY_NAME
+          fi
+          rm -f ./out/$BINARY_NAME
           echo "output files : " && find ./out
+
+          echo "archive_name=${ARCHIVE_NAME}"  >> $GITHUB_ENV
+
       - uses: actions/upload-artifact@v4
         with:
-          name: consul_${{ matrix.goos }}_${{ matrix.goarch }}
-          path: ./out/consul*
+          name: ${{ env.archive_name }}
+          path: ./out/${{ env.archive_name }}
+
 
   create-release:
     needs: build
@@ -122,29 +139,9 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
-      - name: Display structure of downloaded files
-        run: ls -R artifacts
 
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Release
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          body: |
-            Release notes for ${{ github.ref }}
-          draft: false
-          prerelease: false
-#
-#      - name: Upload check
-#        run: |
-#          echo "Will upload these files ..." && find ./out
-#
-      - name: Upload
-        uses: fnkr/github-action-ghr@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GHR_PATH: artifacts/
-          GHR_COMPRESS: gz
+          files: |
+            artifacts/**
