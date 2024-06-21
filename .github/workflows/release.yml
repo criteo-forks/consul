@@ -110,7 +110,7 @@ jobs:
           if [ "${{ matrix.goarch }}" == "amd64" ]; then
             ARCHIVE_GOARCH=""
           fi
-          ARCHIVE_NAME="consul-${{ needs.set-product-version.outputs.product-version }}-${{ matrix.goos }}${ARCHIVE_GOARCH}.${ARCHIVE_EXTENSION}"
+          ARCHIVE_NAME="consul-v${{ needs.set-product-version.outputs.product-version }}-${{ matrix.goos }}${ARCHIVE_GOARCH}.${ARCHIVE_EXTENSION}"
           go build -ldflags="$GOLDFLAGS" -o ./out/$BINARY_NAME
           if [ "${{ matrix.goos }}" == "windows" ]; then
             zip -j ./out/$ARCHIVE_NAME ./out/$BINARY_NAME
