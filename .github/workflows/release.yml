@@ -111,7 +111,13 @@ jobs:
             ARCHIVE_GOARCH=""
           fi
           ARCHIVE_NAME="consul-v${{ needs.set-product-version.outputs.product-version }}-${{ matrix.goos }}${ARCHIVE_GOARCH}.${ARCHIVE_EXTENSION}"
-          go build -ldflags="$GOLDFLAGS" -o ./out/$BINARY_NAME
+          
+          if [ "${{ matrix.goarch }}" == "arm64" ]; then
+            export CC=aarch64-linux-gnu-gcc
+          fi
+
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -ldflags="$GOLDFLAGS" -o ./out/$BINARY_NAME
+
           if [ "${{ matrix.goos }}" == "windows" ]; then
             zip -j ./out/$ARCHIVE_NAME ./out/$BINARY_NAME
           else
