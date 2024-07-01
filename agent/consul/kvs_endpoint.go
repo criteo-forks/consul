@@ -109,32 +109,26 @@ func (k *KVS) Apply(args *structs.KVSRequest, reply *bool) error {
 	var authz resolver.Result
 	var err error
 	defer func() {
-		var errMsg string
-		if err != nil {
-			errMsg = err.Error()
-		} else {
-			errMsg = "None"
-		}
 
 		switch args.Op {
 		case api.KVDelete, api.KVDeleteCAS:
 			k.logger.Named("audit").Warn("K/V entry deletion",
-				"accessorID", authz.AccessorID(),
-				"error", errMsg,
+				"accessorID", accessorIdToAuditMsg(authz.AccessorID()),
+				"error", errorToAuditMsg(err),
 				"key", args.DirEnt.Key)
 		case api.KVSet, api.KVCAS:
 			valueStr := base64.StdEncoding.EncodeToString(args.DirEnt.Value)
 			k.logger.Named("audit").Warn("K/V entry set",
-				"accessorID", authz.AccessorID(),
-				"error", errMsg,
+				"accessorID", accessorIdToAuditMsg(authz.AccessorID()),
+				"error", errorToAuditMsg(err),
 				"key", args.DirEnt.Key, "value", valueStr)
 		default:
 			// Log any other operation which fails
 			if err != nil {
 				k.logger.Named("audit").Warn("K/V operation failure",
-					"accessorID", authz.AccessorID(),
+					"accessorID", accessorIdToAuditMsg(authz.AccessorID()),
 					"operation", args.Op,
-					"error", errMsg,
+					"error", errorToAuditMsg(err),
 					"key", args.DirEnt.Key)
 			}
 		}
@@ -183,19 +177,13 @@ func (k *KVS) Get(args *structs.KeyRequest, reply *structs.IndexedDirEntries) er
 	var authz resolver.Result
 	var err error
 	defer func() {
-		var errMsg string
-		if err != nil {
-			errMsg = err.Error()
-		} else {
-			errMsg = "None"
-		}
 
 		// Log any other operation which fails
 		if err != nil {
 			k.logger.Named("audit").Warn("K/V operation failure",
-				"accessorID", authz.AccessorID(),
+				"accessorID", accessorIdToAuditMsg(authz.AccessorID()),
 				"operation", api.KVGet,
-				"error", errMsg,
+				"error", errorToAuditMsg(err),
 				"key", args.Key)
 		}
 	}()

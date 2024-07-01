@@ -115,16 +115,10 @@ func (c *Catalog) Register(args *structs.RegisterRequest, reply *struct{}) error
 	var authz resolver.Result
 	var err error
 	defer func() {
-		var errMsg string
-		if err != nil {
-			errMsg = err.Error()
-		} else {
-			errMsg = "None"
-		}
 		if args.Service != nil {
 			c.logger.Named("audit").Warn("Service registration",
-				"accessorID", authz.AccessorID(),
-				"error", errMsg,
+				"accessorID", accessorIdToAuditMsg(authz.AccessorID()),
+				"error", errorToAuditMsg(err),
 				"ID", args.Service.ID, "name", args.Service.Service,
 				"NodeID", args.Node,
 				"address", args.Service.Address, "port", args.Service.Port,
@@ -402,15 +396,9 @@ func (c *Catalog) Deregister(args *structs.DeregisterRequest, reply *struct{}) e
 	var authz resolver.Result
 	var err error
 	defer func() {
-		var errMsg string
-		if err != nil {
-			errMsg = err.Error()
-		} else {
-			errMsg = "None"
-		}
 		c.logger.Named("audit").Warn("Catalog deregistration",
-			"accessorID", authz.AccessorID(),
-			"error", errMsg,
+			"accessorID", accessorIdToAuditMsg(authz.AccessorID()),
+			"error", errorToAuditMsg(err),
 			"NodeID", args.Node, "ServiceID", args.ServiceID)
 
 		metrics.MeasureSince([]string{"catalog", "deregister"}, time.Now())

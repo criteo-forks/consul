@@ -267,16 +267,10 @@ func (a *ACL) TokenRead(args *structs.ACLTokenGetRequest, reply *structs.ACLToke
 	var authz resolver.Result
 	var err error
 	defer func() {
-		var errMsg string
-		if err != nil {
-			errMsg = err.Error()
-		} else {
-			errMsg = "None"
-		}
 		if err != nil {
 			a.logger.Named("audit").Warn("Token read",
-				"accessorID", authz.AccessorID(),
-				"error", errMsg,
+				"accessorID", accessorIdToAuditMsg(authz.AccessorID()),
+				"error", errorToAuditMsg(err),
 				"TokenID", args.TokenID)
 		}
 	}()
@@ -495,16 +489,10 @@ func (a *ACL) TokenClone(args *structs.ACLTokenSetRequest, reply *structs.ACLTok
 	updated := &structs.ACLToken{}
 
 	defer func() {
-		var errMsg string
-		if err != nil {
-			errMsg = err.Error()
-		} else {
-			errMsg = "None"
-		}
 
 		a.logger.Named("audit").Warn("Token clone",
-			"accessorID", authz.AccessorID(),
-			"error", errMsg,
+			"accessorID", accessorIdToAuditMsg(authz.AccessorID()),
+			"error", errorToAuditMsg(err),
 			"sourceTokenID", token.AccessorID, "newTokenID", updated.AccessorID,
 			"tokenDescription", token.Description, "policies", token.Policies, "roles", token.Roles)
 
@@ -591,15 +579,9 @@ func (a *ACL) TokenSet(args *structs.ACLTokenSetRequest, reply *structs.ACLToken
 	var err error
 
 	defer func() {
-		var errMsg string
-		if err != nil {
-			errMsg = err.Error()
-		} else {
-			errMsg = "None"
-		}
 		a.logger.Named("audit").Warn("Token set",
-			"accessorID", authz.AccessorID(),
-			"error", errMsg,
+			"accessorID", accessorIdToAuditMsg(authz.AccessorID()),
+			"error", errorToAuditMsg(err),
 			"tokenID", reply.AccessorID, "tokenDescription", reply.Description,
 			"policies", reply.Policies, "roles", reply.Roles)
 		metrics.MeasureSince([]string{"acl", "token", "upsert"}, time.Now())
@@ -650,19 +632,14 @@ func (a *ACL) TokenDelete(args *structs.ACLTokenDeleteRequest, reply *string) er
 	var err error
 	token := &structs.ACLToken{}
 	defer func() {
-		var errMsg, tokenAccessorID, tokenDescription string
-		if err != nil {
-			errMsg = err.Error()
-		} else {
-			errMsg = "None"
-		}
+		var tokenAccessorID, tokenDescription string
 		if token != nil {
 			tokenAccessorID = token.AccessorID
 			tokenDescription = token.Description
 		}
 		a.logger.Named("audit").Warn("Token deletion",
-			"accessorID", authz.AccessorID(),
-			"error", errMsg,
+			"accessorID", accessorIdToAuditMsg(authz.AccessorID()),
+			"error", errorToAuditMsg(err),
 			"tokenAccessorID", tokenAccessorID, "tokenDescription", tokenDescription)
 		metrics.MeasureSince([]string{"acl", "token", "delete"}, time.Now())
 	}()
@@ -967,17 +944,11 @@ func (a *ACL) PolicySet(args *structs.ACLPolicySetRequest, reply *structs.ACLPol
 	var authz resolver.Result
 	var err error
 	defer func() {
-		var errMsg string
-		if err != nil {
-			errMsg = err.Error()
-		} else {
-			errMsg = "None"
-		}
 
 		rulesStr := base64.StdEncoding.EncodeToString([]byte(policy.Rules))
 		a.logger.Named("audit").Warn("Policy set",
-			"accessorID", authz.AccessorID(),
-			"error", errMsg,
+			"accessorID", accessorIdToAuditMsg(authz.AccessorID()),
+			"error", errorToAuditMsg(err),
 			"policyID", policy.ID, "policyName", policy.Name, "policyRules", rulesStr)
 
 		metrics.MeasureSince([]string{"acl", "policy", "upsert"}, time.Now())
@@ -1120,16 +1091,10 @@ func (a *ACL) PolicyDelete(args *structs.ACLPolicyDeleteRequest, reply *string) 
 	var authz resolver.Result
 	var err error
 	defer func() {
-		var errMsg string
-		if err != nil {
-			errMsg = err.Error()
-		} else {
-			errMsg = "None"
-		}
 		rulesStr := base64.StdEncoding.EncodeToString([]byte(policy.Rules))
 		a.logger.Named("audit").Warn("Policy deletion",
-			"accessorID", authz.AccessorID(),
-			"error", errMsg,
+			"accessorID", accessorIdToAuditMsg(authz.AccessorID()),
+			"error", errorToAuditMsg(err),
 			"policyID", policy.ID, "policyName", policy.Name, "policyRules", rulesStr)
 		metrics.MeasureSince([]string{"acl", "policy", "delete"}, time.Now())
 	}()
@@ -1395,16 +1360,10 @@ func (a *ACL) RoleSet(args *structs.ACLRoleSetRequest, reply *structs.ACLRole) e
 	var authz resolver.Result
 	var err error
 	defer func() {
-		var errMsg string
-		if err != nil {
-			errMsg = err.Error()
-		} else {
-			errMsg = "None"
-		}
 
 		a.logger.Named("audit").Warn("Role set",
-			"accessorID", authz.AccessorID(),
-			"error", errMsg,
+			"accessorID", accessorIdToAuditMsg(authz.AccessorID()),
+			"error", errorToAuditMsg(err),
 			"roleID", role.ID, "roleName", role.Name,
 			"roleDescription", role.Description, "rolePolicies", role.Policies)
 		metrics.MeasureSince([]string{"acl", "role", "upsert"}, time.Now())
@@ -1609,16 +1568,10 @@ func (a *ACL) RoleDelete(args *structs.ACLRoleDeleteRequest, reply *string) erro
 	var authz resolver.Result
 	var err error
 	defer func() {
-		var errMsg string
-		if err != nil {
-			errMsg = err.Error()
-		} else {
-			errMsg = "None"
-		}
 
 		a.logger.Named("audit").Warn("Role deletion",
-			"accessorID", authz.AccessorID(),
-			"error", errMsg,
+			"accessorID", accessorIdToAuditMsg(authz.AccessorID()),
+			"error", errorToAuditMsg(err),
 			"roleID", role.ID, "roleName", role.Name,
 			"roleDescription", role.Description, "rolePolicies", role.Policies)
 		metrics.MeasureSince([]string{"acl", "role", "delete"}, time.Now())

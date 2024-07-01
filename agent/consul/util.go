@@ -184,3 +184,17 @@ func DefaultIntentionAllow(authz acl.Authorizer, defaultIntentionPolicy string) 
 	}
 	return defaultAllow
 }
+
+func errorToAuditMsg(err error) string {
+	errMsg := "None"
+	if err != nil {
+		errMsg = err.Error()
+	}
+	return errMsg
+}
+func accessorIdToAuditMsg(accessorID string) string {
+	if accessorID == "" {
+		return "None"
+	}
+	return accessorID
+}
