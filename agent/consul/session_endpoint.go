@@ -55,17 +55,10 @@ func (s *Session) Apply(args *structs.SessionRequest, reply *string) error {
 	var authz resolver.Result
 	var err error
 	defer func() {
-		var errMsg string
-		if err != nil {
-			errMsg = err.Error()
-		} else {
-			errMsg = "None"
-		}
-
 		s.logger.Named("audit").Warn("Session apply",
-			"accessorID", authz.AccessorID(),
+			"accessorID", accessorIdToAuditMsg(authz.AccessorID()),
 			"operation", args.Op,
-			"error", errMsg,
+			"error", errorToAuditMsg(err),
 			"sessionID", args.Session.ID,
 			"sessionName", args.Session.Name,
 			"sessionNode", args.Session.Node)
@@ -206,16 +199,9 @@ func (s *Session) Get(args *structs.SessionSpecificRequest,
 	var authz resolver.Result
 	var err error
 	defer func() {
-		var errMsg string
-		if err != nil {
-			errMsg = err.Error()
-		} else {
-			errMsg = "None"
-		}
-
 		s.logger.Named("audit").Warn("Session get",
-			"accessorID", authz.AccessorID(),
-			"error", errMsg,
+			"accessorID", accessorIdToAuditMsg(authz.AccessorID()),
+			"error", errorToAuditMsg(err),
 			"sessionID", args.SessionID)
 	}()
 	var authzContext acl.AuthorizerContext
@@ -259,16 +245,9 @@ func (s *Session) List(args *structs.SessionSpecificRequest,
 	var authz resolver.Result
 	var err error
 	defer func() {
-		var errMsg string
-		if err != nil {
-			errMsg = err.Error()
-		} else {
-			errMsg = "None"
-		}
-
 		s.logger.Named("audit").Warn("Session list",
-			"accessorID", authz.AccessorID(),
-			"error", errMsg)
+			"accessorID", accessorIdToAuditMsg(authz.AccessorID()),
+			"error", errorToAuditMsg(err))
 	}()
 	var authzContext acl.AuthorizerContext
 	authz, err = s.srv.ResolveTokenAndDefaultMeta(args.Token, &args.EnterpriseMeta, &authzContext)
@@ -305,16 +284,9 @@ func (s *Session) NodeSessions(args *structs.NodeSpecificRequest,
 	var authz resolver.Result
 	var err error
 	defer func() {
-		var errMsg string
-		if err != nil {
-			errMsg = err.Error()
-		} else {
-			errMsg = "None"
-		}
-
 		s.logger.Named("audit").Warn("Session node",
-			"accessorID", authz.AccessorID(),
-			"error", errMsg,
+			"accessorID", accessorIdToAuditMsg(authz.AccessorID()),
+			"error", errorToAuditMsg(err),
 			"node", args.Node)
 	}()
 	var authzContext acl.AuthorizerContext
@@ -354,16 +326,10 @@ func (s *Session) Renew(args *structs.SessionSpecificRequest,
 	var authz resolver.Result
 	var err error
 	defer func() {
-		var errMsg string
-		if err != nil {
-			errMsg = err.Error()
-		} else {
-			errMsg = "None"
-		}
 
 		s.logger.Named("audit").Warn("Session renew",
-			"accessorID", authz.AccessorID(),
-			"error", errMsg,
+			"accessorID", accessorIdToAuditMsg(authz.AccessorID()),
+			"error", errorToAuditMsg(err),
 			"sessionID", args.SessionID)
 		metrics.MeasureSince([]string{"session", "renew"}, time.Now())
 	}()
