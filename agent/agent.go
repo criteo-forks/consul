@@ -2782,10 +2782,14 @@ func (a *Agent) validateService(service *structs.NodeService, chkTypes []*struct
 		)
 	}
 
-	// Reject if any tags are incompatible with DNS
+	// Warn if any tags are incompatible with DNS
 	for _, tag := range service.Tags {
 		if libdns.InvalidNameRe.MatchString(tag) {
-			return fmt.Errorf("Service tag %s contains invalid characters. Valid characters include all alpha-numerics and dashes.", tag)
+			a.logger.Debug("Service tag will not be discoverable "+
+				"via DNS due to invalid characters. Valid characters include "+
+				"all alpha-numerics and dashes.",
+				"tag", tag,
+			)
 		} else if len(tag) > libdns.MaxLabelLength {
 			a.logger.Debug("Service tag will not be discoverable "+
 				"via DNS due to it being too long. Valid lengths are between "+
