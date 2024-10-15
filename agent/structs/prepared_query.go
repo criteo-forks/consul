@@ -86,6 +86,10 @@ type ServiceQuery struct {
 	// local datacenter.
 	Failover QueryFailoverOptions
 
+	// If IncludeAll is true then we will only include all nodes
+	// whatever the health checks
+	IncludeAll bool
+
 	// If OnlyPassing is true then we will only include nodes with passing
 	// health checks (critical AND warning checks will cause a node to be
 	// discarded)

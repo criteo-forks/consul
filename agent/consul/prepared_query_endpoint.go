@@ -578,9 +578,11 @@ func (p *PreparedQuery) execute(query *structs.PreparedQuery,
 
 	// Filter out any unhealthy nodes.
 	filterType := structs.HealthFilterExcludeCritical
-	if query.Service.OnlyPassing {
-		filterType = structs.HealthFilterIncludeOnlyPassing
+	if query.Service.IncludeAll {
+		filterType = structs.HealthFilterIncludeAll
 
+	} else if query.Service.OnlyPassing {
+		filterType = structs.HealthFilterIncludeOnlyPassing
 	}
 
 	nodes = nodes.Filter(structs.CheckServiceNodeFilterOptions{FilterType: filterType,

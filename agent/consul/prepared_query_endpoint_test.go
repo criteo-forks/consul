@@ -2178,6 +2178,33 @@ func TestPreparedQuery_Execute(t *testing.T) {
 		expectNodes(t, &query, &reply, 0)
 	})
 
+	// Critical nodes should also be returned
+	query.Query.Service.IncludeAll = true
+	// remove tags filtering
+	query.Query.Service.Tags = nil
+	setHealth(t, es.server.codec, "dc1", 1, api.HealthPassing)
+	setHealth(t, es.server.codec, "dc1", 2, api.HealthPassing)
+	setHealth(t, es.server.codec, "dc1", 4, api.HealthWarning)
+	require.NoError(t, msgpackrpc.CallWithCodec(es.server.codec, "PreparedQuery.Apply", &query, &query.Query.ID))
+	t.Run("see 10 nodes despite all nodes being critical", func(t *testing.T) {
+		req := structs.PreparedQueryExecuteRequest{
+			Datacenter:    "dc1",
+			QueryIDOrName: query.Query.ID,
+			QueryOptions:  structs.QueryOptions{Token: es.execToken},
+		}
+
+		var reply structs.PreparedQueryExecuteResponse
+		require.NoError(t, msgpackrpc.CallWithCodec(es.server.codec, "PreparedQuery.Execute", &req, &reply))
+
+		expectNodes(t, &query, &reply, 10)
+	})
+	// Undo that so all the following tests aren't broken!
+	query.Query.Service.IncludeAll = false
+	query.Query.Service.Tags = []string{"!tag3"}
+	setHealth(t, es.server.codec, "dc1", 1, api.HealthCritical)
+	setHealth(t, es.server.codec, "dc1", 2, api.HealthCritical)
+	require.NoError(t, msgpackrpc.CallWithCodec(es.server.codec, "PreparedQuery.Apply", &query, &query.Query.ID))
+
 	// Modify the query to have it fail over to a bogus DC and then dc2.
 	query.Query.Service.Failover.Datacenters = []string{"bogus", "dc2"}
 	require.NoError(t, msgpackrpc.CallWithCodec(es.server.codec, "PreparedQuery.Apply", &query, &query.Query.ID))
