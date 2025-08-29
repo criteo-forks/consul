@@ -475,10 +475,12 @@ func queryLocally(p *PreparedQuery,
 			}
 		}
 
-		// Perform the distance sort
-		err := p.srv.sortNodesByDistanceFrom(qs, reply.Nodes)
-		if err != nil {
-			return err
+		// Perform the distance sort if required
+		if qs.Node != "" {
+			err := p.srv.sortNodesByDistanceFrom(qs, reply.Nodes)
+			if err != nil {
+				return err
+			}
 		}
 
 		// If we applied a distance sort, make sure that the node queried for is in
