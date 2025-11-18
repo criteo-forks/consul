@@ -27,6 +27,8 @@ const (
 	ACLTemplatedPolicyNomadServerName = "builtin/nomad-server"
 	ACLTemplatedPolicyAPIGatewayName  = "builtin/api-gateway"
 	ACLTemplatedPolicyNomadClientName = "builtin/nomad-client"
+	ACLTemplatedPolicyAllowServiceName = "criteo/allow_service"
+	ACLTemplatedPolicyAllowPathName    = "criteo/allow_path"
 )
 
 type ACLLink struct {

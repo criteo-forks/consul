@@ -40,6 +40,8 @@ const (
 	_                               = "00000000-0000-0000-0000-000000000007" // formerly workload identity
 	ACLTemplatedPolicyAPIGatewayID  = "00000000-0000-0000-0000-000000000008"
 	ACLTemplatedPolicyNomadClientID = "00000000-0000-0000-0000-000000000009"
+	ACLTemplatedPolicyAllowServiceID = "00000000-0000-0000-0000-000000000010"
+	ACLTemplatedPolicyAllowPathID    = "00000000-0000-0000-0000-000000000011"
 
 	ACLTemplatedPolicyServiceDescription     = "Gives the token or role permissions to register a service and discover services in the Consul catalog. It also gives the specified service's sidecar proxy the permission to discover and route traffic to other services."
 	ACLTemplatedPolicyNodeDescription        = "Gives the token or role permissions for a register an agent/node into the catalog. A node is typically a consul agent but can also be a physical server, cloud instance or a container."
@@ -47,6 +49,8 @@ const (
 	ACLTemplatedPolicyNomadServerDescription = "Gives the token or role permissions required for integration with a nomad server."
 	ACLTemplatedPolicyAPIGatewayDescription  = "Gives the token or role permissions for a Consul api gateway"
 	ACLTemplatedPolicyNomadClientDescription = "Gives the token or role permissions required for integration with a nomad client."
+	ACLTemplatedPolicyAllowServiceDescription = "Grants write access to a service prefix"
+	ACLTemplatedPolicyAllowPathDescription    = "Grants write access to a key prefix"
 
 	ACLTemplatedPolicyNoRequiredVariablesSchema = "" // catch-all schema for all templated policy that don't require a schema
 )
@@ -106,6 +110,20 @@ var (
 			Schema:       ACLTemplatedPolicyNoRequiredVariablesSchema,
 			Template:     ACLTemplatedPolicyNomadClient,
 			Description:  ACLTemplatedPolicyNomadClientDescription,
+		},
+		api.ACLTemplatedPolicyAllowServiceName: {
+			TemplateID:   ACLTemplatedPolicyAllowServiceID,
+			TemplateName: api.ACLTemplatedPolicyAllowServiceName,
+			Schema:       ACLTemplatedPolicyServiceSchema,
+			Template:     ACLTemplatedPolicyAllowService,
+			Description:  ACLTemplatedPolicyAllowServiceDescription,
+		},
+		api.ACLTemplatedPolicyAllowPathName: {
+			TemplateID:   ACLTemplatedPolicyAllowPathID,
+			TemplateName: api.ACLTemplatedPolicyAllowPathName,
+			Schema:       ACLTemplatedPolicyServiceSchema,
+			Template:     ACLTemplatedPolicyAllowPath,
+			Description:  ACLTemplatedPolicyAllowPathDescription,
 		},
 	}
 )
