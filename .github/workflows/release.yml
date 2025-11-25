@@ -30,7 +30,18 @@ jobs:
       # https://github.com/hashicorp/actions-set-product-version
       - name: set product version
         id: set-product-version
-        uses: hashicorp/actions-set-product-version@v2
+        run: |
+          VERSION=$(cat version/VERSION)
+          echo "product-version=$VERSION" >> "$GITHUB_OUTPUT"
+          if [[ "$VERSION" =~ ^([0-9]+\.[0-9]+\.[0-9]+)(-(.*))?$ ]]; then
+             echo "base-product-version=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+             echo "prerelease-product-version=${BASH_REMATCH[3]}" >> "$GITHUB_OUTPUT"
+             echo "pre-version=${BASH_REMATCH[3]}" >> "$GITHUB_OUTPUT"
+          else
+             echo "base-product-version=$VERSION" >> "$GITHUB_OUTPUT"
+             echo "prerelease-product-version=" >> "$GITHUB_OUTPUT"
+             echo "pre-version=" >> "$GITHUB_OUTPUT"
+          fi
       - name: get product version
         id: get-product-version
         run: |
@@ -59,25 +70,7 @@ jobs:
           echo "Prerelease Version: ${{ needs.set-product-version.outputs.pre-version }}"
           echo "Ldflags: ${{ needs.set-product-version.outputs.shared-ldflags }}"
 
-  generate-metadata-file:
-    needs: set-product-version
-    runs-on: ubuntu-latest
-    outputs:
-      filepath: ${{ steps.generate-metadata-file.outputs.filepath }}
-    steps:
-      - name: 'Checkout directory'
-        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
-      - name: Generate metadata file
-        id: generate-metadata-file
-        uses: hashicorp/actions-generate-metadata@v1
-        with:
-          version: ${{ needs.set-product-version.outputs.product-version }}
-          product: ${{ env.PKG_NAME }}
 
-      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
-        with:
-          name: metadata.json
-          path: ${{ steps.generate-metadata-file.outputs.filepath }}
 
   build:
     needs:
@@ -146,8 +139,13 @@ jobs:
         with:
           path: artifacts
 
+      - name: Prepare artifacts
+        run: |
+          mkdir release-artifacts
+          find artifacts -type f -exec cp {} release-artifacts/ \;
+
       - name: Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            artifacts/**
+        uses: fnkr/github-action-ghr@v1
+        env:
+          GHR_PATH: release-artifacts/
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
