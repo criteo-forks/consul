@@ -40,22 +40,13 @@ on:
       go-version:
         required: true
         type: string
-    secrets:
-      elevated-github-token:
-        required: true
-      consul-license:
-        required: true
-      datadog-api-key:
-        required: true
+
 env:
   TEST_RESULTS: /tmp/test-results
   GOTESTSUM_VERSION: "1.11.0"
   GOARCH: ${{inputs.go-arch}}
   TOTAL_RUNNERS: ${{inputs.runner-count}}
-  CONSUL_LICENSE: ${{secrets.consul-license}}
   GOTAGS: ${{ inputs.go-tags}}
-  GOPRIVATE: github.com/hashicorp # Required for enterprise deps
-  DATADOG_API_KEY: ${{secrets.datadog-api-key}}
   
 jobs:
   set-test-package-matrix:
@@ -86,19 +77,12 @@ jobs:
           ulimit -Sa
           echo "Hard limits"
           ulimit -Ha   
-      # upload-artifact requires a unique ID per run. These steps will be repeated with the matrix run, and other unit tests
-      # will also overlap with the names here. We use a random string rather than trying to do trickery 
-      # with the package matrix.
       - id: generate-matrix-id
         run: |
           MATRIX_RUN_ID=$(head /dev/urandom | tr -dc A-Z | head -c8)
           echo "The matrix run ID is $MATRIX_RUN_ID"
           echo "matrix-run-id=$MATRIX_RUN_ID" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
-      # NOTE: This step is specifically needed for ENT. It allows us to access the required private HashiCorp repos.
-      - name: Setup Git
-        if: ${{ endsWith(inputs.repository-name, '-enterprise') }}
-        run: git config --global url."https://${{ secrets.elevated-github-token }}:@github.com".insteadOf "https://github.com"
       - uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491 # v5.0.0
         with:
           go-version: ${{ inputs.go-version }}
@@ -121,9 +105,7 @@ jobs:
       - name: Run tests 
         working-directory: ${{inputs.directory}}
         run: |
-          # separate the list
           PACKAGE_NAMES="${{ join(matrix.package, ' ') }}"
-          # PACKAGE_NAMES="${{ matrix.package }}"
 
           # some tests expect this umask, and arm images have a different default
           umask 0022
@@ -140,37 +122,6 @@ jobs:
           ${{inputs.go-test-flags}} \
           -cover -coverprofile=coverage.txt \
           -timeout=30m
-
-      # NOTE: ENT specific step as we store secrets in Vault.
-      - name: Authenticate to Vault
-        if: ${{ !cancelled() && endsWith(github.repository, '-enterprise') }}
-        id: vault-auth
-        run: vault-auth
-
-      # NOTE: ENT specific step as we store secrets in Vault.
-      - name: Fetch Secrets
-        if: ${{ !cancelled() && endsWith(github.repository, '-enterprise') }}
-        id: secrets
-        uses: hashicorp/vault-action@v3
-        with:
-          url: ${{ steps.vault-auth.outputs.addr }}
-          caCertificate: ${{ steps.vault-auth.outputs.ca_certificate }}
-          token: ${{ steps.vault-auth.outputs.token }}
-          secrets: |
-              kv/data/github/${{ github.repository }}/datadog apikey | DATADOG_API_KEY;
-
-      - name: prepare datadog-ci
-        if: ${{ !cancelled() && !endsWith(github.repository, '-enterprise') }}
-        run: |
-          curl -L --fail "https://github.com/DataDog/datadog-ci/releases/latest/download/datadog-ci_linux-x64" --output "/usr/local/bin/datadog-ci"
-          chmod +x /usr/local/bin/datadog-ci
-
-      - name: upload coverage
-        # do not run on forks
-        if: ${{ !cancelled() && env.DATADOG_API_KEY}}
-        env:
-          DD_ENV: ci
-        run: datadog-ci junit upload --service "$GITHUB_REPOSITORY" ${{env.TEST_RESULTS}}/gotestsum-report.xml
 
       - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         if: ${{ !cancelled() }}
