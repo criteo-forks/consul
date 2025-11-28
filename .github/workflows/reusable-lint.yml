@@ -17,13 +17,9 @@ on:
       repository-name:
         required: true
         type: string
-    secrets:
-      elevated-github-token:
-        required: true
+
 env:
-  GOTAGS: "${{ github.event.repository.name == 'consul-enterprise' && 'consulent consuldev' || '' }}"
   GOARCH: ${{inputs.go-arch}}
-  GOPRIVATE: github.com/hashicorp # Required for enterprise deps
 
 jobs:
   lint:
@@ -43,20 +39,16 @@ jobs:
     name: lint ${{ matrix.directory }}
     steps:
       - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
-      # NOTE: This step is specifically needed for ENT. It allows us to access the required private HashiCorp repos.
-      - name: Setup Git
-        if: ${{ endsWith(inputs.repository-name, '-enterprise') }}
-        run: git config --global url."https://${{ secrets.elevated-github-token }}:@github.com".insteadOf "https://github.com"
       - uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491 # v5.0.0
         with:
           go-version: ${{ inputs.go-version }}
       - run: go env
       - name: Set golangci-lint version
         run: echo "GOLANGCI_LINT_VERSION=$(make --no-print-directory print-GOLANGCI_LINT_VERSION)" >> $GITHUB_ENV
+      - name: Install golangci-lint
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v${{ env.GOLANGCI_LINT_VERSION }}
       - name: lint-${{ matrix.directory }}
-        uses: golangci/golangci-lint-action@82d40c283aeb1f2b6595839195e95c2d6a49081b # v5.0.0
-        with:
-          working-directory: ${{ matrix.directory }}
-          version: ${{ env.GOLANGCI_LINT_VERSION }}
-          args: --build-tags="${{ env.GOTAGS }}" -v
-          skip-cache: true
+        working-directory: ${{ matrix.directory || '.' }}
+        run: |
+          $(go env GOPATH)/bin/golangci-lint run -v
