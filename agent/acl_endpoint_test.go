@@ -1408,7 +1408,7 @@ func TestACL_HTTP(t *testing.T) {
 
 			var list map[string]api.ACLTemplatedPolicyResponse
 			require.NoError(t, json.NewDecoder(resp.Body).Decode(&list))
-			require.Len(t, list, 6)
+			require.Len(t, list, 8)
 
 			require.Equal(t, api.ACLTemplatedPolicyResponse{
 				TemplateName: api.ACLTemplatedPolicyServiceName,
@@ -1477,6 +1477,26 @@ func TestACL_HTTP(t *testing.T) {
 				require.NotEmpty(t, syntheticPolicy.Hash)
 				require.Equal(t, "synthetic policy generated from templated policy: builtin/service", syntheticPolicy.Description)
 				require.Contains(t, syntheticPolicy.Name, "synthetic-policy-")
+			})
+
+			t.Run("Custom allow-service exact name input", func(t *testing.T) {
+				previewInput := &structs.ACLTemplatedPolicyVariables{Name: "web-", ExactName: "web"}
+				req, _ := http.NewRequest(
+					"POST",
+					fmt.Sprintf("/v1/acl/templated-policy/preview/%s", api.ACLTemplatedPolicyAllowServiceName),
+					jsonBody(previewInput),
+				)
+				req.Header.Add("X-Consul-Token", "root")
+				resp := httptest.NewRecorder()
+
+				a.srv.h.ServeHTTP(resp, req)
+				require.Equal(t, http.StatusOK, resp.Code)
+
+				var syntheticPolicy *structs.ACLPolicy
+				require.NoError(t, json.NewDecoder(resp.Body).Decode(&syntheticPolicy))
+
+				require.Contains(t, syntheticPolicy.Rules, `service "web"`)
+				require.Contains(t, syntheticPolicy.Rules, `service_prefix "web-"`)
 			})
 		})
 	})
