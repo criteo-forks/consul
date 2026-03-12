@@ -179,7 +179,8 @@ type ACLTemplatedPolicyResponse struct {
 }
 
 type ACLTemplatedPolicyVariables struct {
-	Name string
+	Name      string
+	ExactName string `json:",omitempty"`
 }
 
 // ACLPolicy represents an ACL Policy.
