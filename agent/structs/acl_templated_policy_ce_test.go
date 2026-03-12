@@ -105,6 +105,44 @@ service "api-gateway" {
 }`,
 			},
 		},
+		"criteo-allow-service-template-legacy-prefix-only": {
+			templatedPolicy: &ACLTemplatedPolicy{
+				TemplateID:   ACLTemplatedPolicyAllowServiceID,
+				TemplateName: api.ACLTemplatedPolicyAllowServiceName,
+				TemplateVariables: &ACLTemplatedPolicyVariables{
+					Name: "api-",
+				},
+			},
+			expectedPolicy: &ACLPolicy{
+				Description: "synthetic policy generated from templated policy: criteo/allow_service",
+				Rules: `
+service_prefix "api-" {
+  policy = "write"
+}
+`,
+			},
+		},
+		"criteo-allow-service-template-with-exact-name": {
+			templatedPolicy: &ACLTemplatedPolicy{
+				TemplateID:   ACLTemplatedPolicyAllowServiceID,
+				TemplateName: api.ACLTemplatedPolicyAllowServiceName,
+				TemplateVariables: &ACLTemplatedPolicyVariables{
+					Name:      "api-",
+					ExactName: "api",
+				},
+			},
+			expectedPolicy: &ACLPolicy{
+				Description: "synthetic policy generated from templated policy: criteo/allow_service",
+				Rules: `
+service "api" {
+  policy = "write"
+}
+service_prefix "api-" {
+  policy = "write"
+}
+`,
+			},
+		},
 	}
 
 	for name, tcase := range testCases {
