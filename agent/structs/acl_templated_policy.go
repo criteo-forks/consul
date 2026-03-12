@@ -153,7 +153,8 @@ type ACLTemplatedPolicy struct {
 
 // ACLTemplatedPolicyVariables are input variables required to render templated policies.
 type ACLTemplatedPolicyVariables struct {
-	Name string `json:"name,omitempty"`
+	Name      string `json:"name,omitempty"`
+	ExactName string `json:"exact_name,omitempty"`
 }
 
 func (tp *ACLTemplatedPolicy) Clone() *ACLTemplatedPolicy {
@@ -182,6 +183,7 @@ func (tp *ACLTemplatedPolicy) AddToHash(h hash.Hash) {
 
 func (tv *ACLTemplatedPolicyVariables) AddToHash(h hash.Hash) {
 	h.Write([]byte(tv.Name))
+	h.Write([]byte(tv.ExactName))
 }
 
 func (tv *ACLTemplatedPolicyVariables) Clone() *ACLTemplatedPolicyVariables {
@@ -211,6 +213,13 @@ func (tp *ACLTemplatedPolicy) ValidateTemplatedPolicy(schema string) error {
 		if tp.TemplateName == api.ACLTemplatedPolicyNodeName && !acl.IsValidNodeIdentityName(tp.TemplateVariables.Name) {
 			return fmt.Errorf("node identity %q  has an invalid name. Only lowercase alphanumeric characters, '-' and '_' are allowed", tp.TemplateVariables.Name)
 		}
+
+		if tp.TemplateName == api.ACLTemplatedPolicyAllowServiceName && tp.TemplateVariables.ExactName != "" {
+			expectedName := tp.TemplateVariables.ExactName + "-"
+			if tp.TemplateVariables.Name != expectedName {
+				return fmt.Errorf("templated policy %q requires name %q to match exact_name %q plus a trailing '-'", tp.TemplateName, tp.TemplateVariables.Name, tp.TemplateVariables.ExactName)
+			}
+		}
 	}
 
 	if res.Valid() {
@@ -235,7 +244,7 @@ func (tp *ACLTemplatedPolicy) EstimateSize() int {
 }
 
 func (tv *ACLTemplatedPolicyVariables) EstimateSize() int {
-	return len(tv.Name)
+	return len(tv.Name) + len(tv.ExactName)
 }
 
 // SyntheticPolicy generates a policy based on templated policies' ID and variables
