@@ -37,20 +37,47 @@ jobs:
           fetch-depth: 0
       - name: Check for skippable file changes
         id: changed-files
-        uses: tj-actions/changed-files@2f7c5bfce28377bc069a65ba478de0a74aa0ca32 # v46.0.1
-        with:
-          # This is a multi-line YAML string with one match pattern per line.
-          # Do not use quotes around values, as it's not supported.
-          # See https://github.com/tj-actions/changed-files/blob/main/README.md#inputs-%EF%B8%8F
-          # for usage, options, and more details on match syntax.
-          files: |
-            .github/workflows/reusable-conditional-skip.yml
-            **.md
-            docs/**
-            ui/**
-            website/**
-            grafana/**
-            .changelog/**
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE_SHA: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          if [ -n "${BASE_REF}" ]; then
+            git fetch --no-tags --prune origin "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"
+            base="$(git merge-base HEAD "origin/${BASE_REF}")"
+          else
+            base="${BEFORE_SHA}"
+          fi
+
+          if [ -z "${base}" ] || [ "${base}" = "0000000000000000000000000000000000000000" ]; then
+            changed_files="$(git diff-tree --no-commit-id --name-only -r "${HEAD_SHA}")"
+          else
+            changed_files="$(git diff --name-only "${base}" "${HEAD_SHA}")"
+          fi
+
+          skippable_files=""
+          non_skippable_files=""
+          while IFS= read -r file; do
+            [ -n "${file}" ] || continue
+            case "${file}" in
+              .github/workflows/reusable-conditional-skip.yml|*.md|docs/*|ui/*|website/*|grafana/*|.changelog/*)
+                skippable_files="${skippable_files}${skippable_files:+ }${file}"
+                ;;
+              *)
+                non_skippable_files="${non_skippable_files}${non_skippable_files:+ }${file}"
+                ;;
+            esac
+          done <<EOF
+          ${changed_files}
+          EOF
+
+          echo "all_changed_files=${skippable_files}" >> "$GITHUB_OUTPUT"
+          echo "other_changed_files=${non_skippable_files}" >> "$GITHUB_OUTPUT"
+          if [ -n "${skippable_files}" ] && [ -z "${non_skippable_files}" ]; then
+            echo "only_changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "only_changed=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Print changed files
         env:
           SKIPPABLE_CHANGED_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
