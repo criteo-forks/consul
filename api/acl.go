@@ -21,12 +21,12 @@ const (
 	ACLManagementType = "management"
 
 	// ACLTemplatedPolicy names
-	ACLTemplatedPolicyServiceName     = "builtin/service"
-	ACLTemplatedPolicyNodeName        = "builtin/node"
-	ACLTemplatedPolicyDNSName         = "builtin/dns"
-	ACLTemplatedPolicyNomadServerName = "builtin/nomad-server"
-	ACLTemplatedPolicyAPIGatewayName  = "builtin/api-gateway"
-	ACLTemplatedPolicyNomadClientName = "builtin/nomad-client"
+	ACLTemplatedPolicyServiceName      = "builtin/service"
+	ACLTemplatedPolicyNodeName         = "builtin/node"
+	ACLTemplatedPolicyDNSName          = "builtin/dns"
+	ACLTemplatedPolicyNomadServerName  = "builtin/nomad-server"
+	ACLTemplatedPolicyAPIGatewayName   = "builtin/api-gateway"
+	ACLTemplatedPolicyNomadClientName  = "builtin/nomad-client"
 	ACLTemplatedPolicyAllowServiceName = "criteo/allow_service"
 	ACLTemplatedPolicyAllowPathName    = "criteo/allow_path"
 	ACLTemplatedPolicyEnableAgentName  = "criteo/enable_agent"
