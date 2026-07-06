@@ -376,7 +376,7 @@ func (p *PreparedQuery) Execute(args *structs.PreparedQueryExecuteRequest,
 	}
 
 	// Skip local datacenter query if requested
-	if query.Service.Failover.SkipLocalDatacenter == false {
+	if !query.Service.Failover.SkipLocalDatacenter {
 		if err := queryLocally(p, args, query, reply); err != nil {
 			return err
 		}
@@ -805,7 +805,7 @@ func queryFailover(p *PreparedQuery,
 		// attempt to talk to datacenters we don't know about.
 		if dc := target.Datacenter; dc != "" {
 			if _, ok := known[dc]; !ok {
-				if query.Service.Failover.SkipLocalDatacenter == false || dc != p.srv.config.Datacenter {
+				if !query.Service.Failover.SkipLocalDatacenter || dc != p.srv.config.Datacenter {
 					q.GetLogger().Debug("Skipping unknown datacenter in prepared query", "datacenter", dc)
 					continue
 				}
@@ -871,7 +871,7 @@ func targetSelector(p *PreparedQuery,
 		dc = q.GetLocalDC()
 	}
 
-	if query.Service.Failover.SkipLocalDatacenter == true && dc == p.srv.config.Datacenter {
+	if query.Service.Failover.SkipLocalDatacenter && dc == p.srv.config.Datacenter {
 		if err := queryLocally(p, args, &query, reply); err != nil {
 			q.GetLogger().Warn("[WARN] consul.prepared_query: Failed querying for service "+
 				"'%s' in local datacenter: %s", query.Service.Service, err)
