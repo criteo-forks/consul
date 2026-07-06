@@ -717,9 +717,16 @@ func TestAPI_ClientTLSOptions(t *testing.T) {
 
 		// Should fail
 		_, err = client.Agent().Self()
-		// Check for one of the possible cert error messages
+		if err == nil {
+			t.Fatal("expected tls certificate error, but got nil")
+		}
+		// Check for one of the possible cert error messages. A TLS server can also
+		// close the connection while rejecting a missing client certificate.
 		// See https://cs.opensource.google/go/go/+/62a994837a57a7d0c58bb364b580a389488446c9
-		if err == nil || (!strings.Contains(err.Error(), "tls: bad certificate") && !strings.Contains(err.Error(), "tls: certificate required")) {
+		if !strings.Contains(err.Error(), "tls: bad certificate") &&
+			!strings.Contains(err.Error(), "tls: certificate required") &&
+			!strings.Contains(err.Error(), "connection reset by peer") &&
+			!strings.Contains(err.Error(), "broken pipe") {
 			t.Fatalf("expected tls certificate error, but got '%v'", err)
 		}
 	})
