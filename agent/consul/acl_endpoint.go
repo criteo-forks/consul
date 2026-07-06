@@ -334,7 +334,7 @@ func (a *ACL) TokenRead(args *structs.ACLTokenGetRequest, reply *structs.ACLToke
 				return err
 			} else if token == nil {
 				// token does not exist
-				if ns := args.EnterpriseMeta.NamespaceOrEmpty(); ns != "" {
+				if ns := args.NamespaceOrEmpty(); ns != "" {
 					err = fmt.Errorf("token not found in namespace %s: %w", ns, acl.ErrNotFound)
 					return err
 				}
@@ -512,7 +512,7 @@ func (a *ACL) TokenClone(args *structs.ACLTokenSetRequest, reply *structs.ACLTok
 	if err != nil {
 		return err
 	} else if token == nil {
-		if ns := args.ACLToken.EnterpriseMeta.NamespaceOrEmpty(); ns != "" {
+		if ns := args.ACLToken.NamespaceOrEmpty(); ns != "" {
 			err = fmt.Errorf("token not found in namespace %s: %w", ns, acl.ErrNotFound)
 			return err
 		}
@@ -691,7 +691,7 @@ func (a *ACL) TokenDelete(args *structs.ACLTokenDeleteRequest, reply *string) er
 		return err
 	} else {
 		// in Primary Datacenter but the token does not exist - return early indicating it wasn't found.
-		if ns := args.EnterpriseMeta.NamespaceOrEmpty(); ns != "" {
+		if ns := args.NamespaceOrEmpty(); ns != "" {
 			err = fmt.Errorf("token not found in namespace %s: %w", ns, acl.ErrNotFound)
 			return err
 		}
@@ -1594,7 +1594,7 @@ func (a *ACL) RoleDelete(args *structs.ACLRoleDeleteRequest, reply *string) erro
 	}
 
 	if role == nil {
-		if ns := args.EnterpriseMeta.NamespaceOrEmpty(); ns != "" {
+		if ns := args.NamespaceOrEmpty(); ns != "" {
 			err = fmt.Errorf("role not found in namespace %s: %w", ns, acl.ErrNotFound)
 			return err
 		}
