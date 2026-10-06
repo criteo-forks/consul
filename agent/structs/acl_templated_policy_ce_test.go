@@ -143,6 +143,44 @@ service_prefix "api-" {
 `,
 			},
 		},
+		"criteo-allow-path-template-legacy-prefix-only": {
+			templatedPolicy: &ACLTemplatedPolicy{
+				TemplateID:   ACLTemplatedPolicyAllowPathID,
+				TemplateName: api.ACLTemplatedPolicyAllowPathName,
+				TemplateVariables: &ACLTemplatedPolicyVariables{
+					Name: "api-",
+				},
+			},
+			expectedPolicy: &ACLPolicy{
+				Description: "synthetic policy generated from templated policy: criteo/allow_path",
+				Rules: `
+key_prefix "services-data/api-" {
+  policy = "write"
+}
+`,
+			},
+		},
+		"criteo-allow-path-template-with-exact-name": {
+			templatedPolicy: &ACLTemplatedPolicy{
+				TemplateID:   ACLTemplatedPolicyAllowPathID,
+				TemplateName: api.ACLTemplatedPolicyAllowPathName,
+				TemplateVariables: &ACLTemplatedPolicyVariables{
+					Name:      "api-",
+					ExactName: "api",
+				},
+			},
+			expectedPolicy: &ACLPolicy{
+				Description: "synthetic policy generated from templated policy: criteo/allow_path",
+				Rules: `
+key_prefix "services-data/api/" {
+  policy = "write"
+}
+key_prefix "services-data/api-" {
+  policy = "write"
+}
+`,
+			},
+		},
 		"criteo-enable-agent-template": {
 			templatedPolicy: &ACLTemplatedPolicy{
 				TemplateID:   ACLTemplatedPolicyEnableAgentID,

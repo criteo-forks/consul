@@ -223,7 +223,8 @@ func (tp *ACLTemplatedPolicy) ValidateTemplatedPolicy(schema string) error {
 			return fmt.Errorf("node identity %q  has an invalid name. Only lowercase alphanumeric characters, '-' and '_' are allowed", tp.TemplateVariables.Name)
 		}
 
-		if tp.TemplateName == api.ACLTemplatedPolicyAllowServiceName && tp.TemplateVariables.ExactName != "" {
+		if (tp.TemplateName == api.ACLTemplatedPolicyAllowServiceName || tp.TemplateName == api.ACLTemplatedPolicyAllowPathName) &&
+			tp.TemplateVariables.ExactName != "" {
 			expectedName := tp.TemplateVariables.ExactName + "-"
 			if tp.TemplateVariables.Name != expectedName {
 				return fmt.Errorf("templated policy %q requires name %q to match exact_name %q plus a trailing '-'", tp.TemplateName, tp.TemplateVariables.Name, tp.TemplateVariables.ExactName)
