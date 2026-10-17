@@ -13,7 +13,9 @@ import (
 
 	"github.com/miekg/dns"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/errgroup"
 
+	cachetype "github.com/hashicorp/consul/agent/cache-types"
 	"github.com/hashicorp/consul/agent/netutil"
 	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/consul/api"
@@ -2644,6 +2646,100 @@ func TestDNS_ServiceLookup_OnlyPassing(t *testing.T) {
 	ips := []string{in.Answer[0].(*dns.A).A.String(), in.Answer[1].(*dns.A).A.String()}
 	sort.Strings(ips)
 	require.Equal(t, []string{"127.0.0.1", "127.0.0.2"}, ips)
+}
+
+func TestDNS_ServiceLookup_CacheConcurrent(t *testing.T) {
+	if testing.Short() {
+		t.Skip("too slow for testing.Short")
+	}
+
+	a := NewTestAgent(t, `
+		use_streaming_backend = false
+		dns_config {
+			use_cache = true
+			only_passing = true
+		}
+	`)
+	defer a.Shutdown()
+	testrpc.WaitForLeader(t, a.RPC, "dc1")
+
+	const serviceCount = 25
+	want := make(map[string]bool, serviceCount)
+	for i := 0; i < serviceCount; i++ {
+		address := fmt.Sprintf("192.0.2.%d", i+1)
+		want[address] = true
+		args := &structs.RegisterRequest{
+			Datacenter: "dc1",
+			Node:       "foo",
+			Address:    "198.18.0.1",
+			Service: &structs.NodeService{
+				ID:      fmt.Sprintf("web-%d", i),
+				Service: "web",
+				Address: address,
+				Port:    8000,
+			},
+		}
+		var out struct{}
+		require.NoError(t, a.RPC(context.Background(), "Catalog.Register", args, &out))
+	}
+
+	// Keep the cached result to check that DNS requests leave it unchanged.
+	raw, _, err := a.cache.Get(context.Background(), cachetype.HealthServicesName, &structs.ServiceSpecificRequest{
+		Datacenter:       "dc1",
+		ServiceName:      "web",
+		HealthFilterType: structs.HealthFilterIncludeOnlyPassing,
+		QueryOptions: structs.QueryOptions{
+			UseCache:   true,
+			AllowStale: true,
+		},
+	})
+	require.NoError(t, err)
+	cached := raw.(*structs.IndexedCheckServiceNodes)
+	require.Len(t, cached.Nodes, serviceCount)
+	original := cached.Nodes.DeepCopy()
+
+	lookup := func() error {
+		m := new(dns.Msg)
+		m.SetQuestion("web.service.consul.", dns.TypeA)
+		c := &dns.Client{Net: "tcp"}
+		in, _, err := c.Exchange(m, a.DNSAddr())
+		if err != nil {
+			return err
+		}
+		if in.Rcode != dns.RcodeSuccess || len(in.Answer) != serviceCount {
+			return fmt.Errorf("expected %d addresses, got rcode %d and %d answers", serviceCount, in.Rcode, len(in.Answer))
+		}
+		seen := make(map[string]bool, serviceCount)
+		for _, rr := range in.Answer {
+			a, ok := rr.(*dns.A)
+			if !ok || !want[a.A.String()] || seen[a.A.String()] {
+				return fmt.Errorf("unexpected or duplicate DNS answer: %v", rr)
+			}
+			seen[a.A.String()] = true
+		}
+		return nil
+	}
+
+	// Even one lookup must not reorder the shared cache while randomizing DNS.
+	require.NoError(t, lookup())
+	require.Equal(t, original, cached.Nodes)
+
+	var g errgroup.Group
+	start := make(chan struct{})
+	for i := 0; i < 16; i++ {
+		g.Go(func() error {
+			<-start
+			for j := 0; j < 32; j++ {
+				if err := lookup(); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+	}
+	close(start)
+	require.NoError(t, g.Wait())
+	require.Equal(t, original, cached.Nodes)
 }
 
 func TestDNS_ServiceLookup_Randomize(t *testing.T) {
