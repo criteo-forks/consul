@@ -11,6 +11,7 @@ import (
 	"math"
 	"net"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -1517,6 +1518,9 @@ func (d *DNSServer) lookupServiceNodes(cfg *dnsRequestConfig, lookup serviceLook
 	if err != nil {
 		return out, err
 	}
+
+	// DNS callers shuffle the nodes, so don't share the cache's backing array.
+	out.Nodes = slices.Clone(out.Nodes)
 
 	return out, nil
 }

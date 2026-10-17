@@ -1,0 +1,3 @@
+```release-note:bug
+dns: Fix a race that can lose addresses from cached service lookups under concurrent DNS queries when the streaming backend is disabled.
+```
