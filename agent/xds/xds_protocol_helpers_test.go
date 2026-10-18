@@ -37,6 +37,7 @@ import (
 
 	"github.com/hashicorp/consul/agent/connect"
 	"github.com/hashicorp/consul/agent/grpc-external/limiter"
+	"github.com/hashicorp/consul/agent/netutil"
 	"github.com/hashicorp/consul/agent/proxycfg"
 	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/consul/agent/xds/response"
@@ -191,6 +192,13 @@ func newTestServerDeltaScenario(
 ) *testServerScenario {
 	mgr := newTestManager()
 	envoy := NewTestEnvoy(t, proxyID, token)
+
+	// Listener generation checks dual-stack mode through the local agent's
+	// HTTP API. Mock it here so these tests don't depend on another test
+	// having installed the mock first, e.g. when a failing test is rerun alone.
+	origGetAgentBindAddr := netutil.GetAgentBindAddrFunc
+	netutil.GetAgentBindAddrFunc = netutil.GetMockGetAgentBindAddrFunc("0.0.0.0")
+	t.Cleanup(func() { netutil.GetAgentBindAddrFunc = origGetAgentBindAddr })
 
 	sink := metrics.NewInmemSink(1*time.Minute, 1*time.Minute)
 	cfg := metrics.DefaultConfig("consul.xds.test")
