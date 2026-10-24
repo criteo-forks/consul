@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1234,4 +1235,106 @@ func newEventFromSubscription(t *testing.T, index uint64) stream.Event {
 	event, err := sub.Next(ctx)
 	require.NoError(t, err)
 	return event
+}
+
+// fakeRaft stands in for the raft state a LeaderContactWatcher reads.
+type fakeRaft struct {
+	leader  atomic.Bool
+	contact atomic.Int64 // unix nanoseconds
+}
+
+func (f *fakeRaft) isLeader() bool         { return f.leader.Load() }
+func (f *fakeRaft) lastContact() time.Time { return time.Unix(0, f.contact.Load()) }
+
+type leaderContactBackend struct {
+	*testBackend
+	watcher *LeaderContactWatcher
+}
+
+func (b *leaderContactBackend) LeaderContact() context.Context {
+	return b.watcher.Context()
+}
+
+func TestServer_Subscribe_EndsWithoutLeaderContact(t *testing.T) {
+	t0 := time.Now()
+	raft := &fakeRaft{}
+	raft.contact.Store(t0.UnixNano())
+	backend := &leaderContactBackend{
+		testBackend: newTestBackend(t),
+		watcher:     NewLeaderContactWatcher(raft.isLeader, raft.lastContact),
+	}
+	addr := runTestServer(t, NewServer(backend, hclog.New(nil)))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	t.Cleanup(cancel)
+
+	//nolint:staticcheck
+	conn, err := gogrpc.DialContext(ctx, addr.String(), gogrpc.WithInsecure())
+	require.NoError(t, err)
+	t.Cleanup(logError(t, conn.Close))
+	client := pbsubscribe.NewStateChangeSubscriptionClient(conn)
+	req := &pbsubscribe.SubscribeRequest{
+		Topic:   pbsubscribe.Topic_ServiceHealth,
+		Subject: &pbsubscribe.SubscribeRequest_NamedSubject{NamedSubject: &pbsubscribe.NamedSubject{Key: "redis"}},
+	}
+
+	// Fresh server: streams deliver their snapshot.
+	var subs []pbsubscribe.StateChangeSubscription_SubscribeClient
+	for i := 0; i < 3; i++ {
+		sub, err := client.Subscribe(ctx, req)
+		require.NoError(t, err)
+		_, err = sub.Recv()
+		require.NoError(t, err)
+		subs = append(subs, sub)
+	}
+
+	// One check of the shared watcher ends every open stream with a
+	// retryable error.
+	backend.watcher.check(t0.Add(maxLeaderContactAge + time.Second))
+	for _, sub := range subs {
+		var err error
+		for err == nil {
+			_, err = sub.Recv()
+		}
+		require.Equal(t, codes.Unavailable, status.Code(err))
+	}
+
+	// New subscriptions are refused while it lasts.
+	sub, err := client.Subscribe(ctx, req)
+	require.NoError(t, err)
+	_, err = sub.Recv()
+	require.Equal(t, codes.Unavailable, status.Code(err))
+
+	// And accepted again once the leader is heard from.
+	now := t0.Add(maxLeaderContactAge + 2*time.Second)
+	raft.contact.Store(now.UnixNano())
+	backend.watcher.check(now)
+	sub, err = client.Subscribe(ctx, req)
+	require.NoError(t, err)
+	_, err = sub.Recv()
+	require.NoError(t, err)
+}
+
+func TestLeaderContactWatcher(t *testing.T) {
+	raft := &fakeRaft{}
+
+	// A follower that never heard from a leader is not fresh.
+	w := NewLeaderContactWatcher(raft.isLeader, raft.lastContact)
+	require.Error(t, w.Context().Err())
+
+	// The leader is always fresh, whatever its last contact time.
+	t0 := time.Now()
+	raft.leader.Store(true)
+	w.check(t0)
+	require.NoError(t, w.Context().Err())
+	fresh := w.Context()
+
+	// Right after stepping down, the last contact time is ignored.
+	raft.leader.Store(false)
+	w.check(t0.Add(stepDownGrace - time.Second))
+	require.NoError(t, fresh.Err())
+
+	// After the grace, it counts again.
+	w.check(t0.Add(stepDownGrace + time.Second))
+	require.ErrorIs(t, context.Cause(fresh), errNoLeaderContact)
 }

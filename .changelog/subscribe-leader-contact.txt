@@ -1,0 +1,3 @@
+```release-note:bug
+streaming: End subscriptions on a server that has had no contact with the Raft leader for over 10s, and refuse new ones, so streaming clients resubscribe to a healthy server instead of serving stale data for as long as the server is cut off.
+```
