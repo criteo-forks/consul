@@ -1,0 +1,3 @@
+```release-note:bug
+streaming: Close gRPC connections to a server as soon as it is removed from the agent's server list, so streaming subscriptions on a frozen or unreachable server fail over within seconds instead of staying silent until keepalive gives up (~40s).
+```
