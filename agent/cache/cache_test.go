@@ -834,6 +834,7 @@ func TestCacheGet_expireBackgroudRefreshCancel(t *testing.T) {
 	})
 	defer typ.AssertExpectations(t)
 	c := New(Options{})
+	defer c.Close()
 
 	// Register the type with a timeout
 	c.RegisterType("t", typ)
@@ -870,6 +871,8 @@ func TestCacheGet_expireBackgroudRefreshCancel(t *testing.T) {
 	require.Equal(t, uint64(4), meta.Index)
 	require.False(t, meta.Hit)
 
+	refreshDone := waitForBackgroundRefresh(t, c, makeEntryKey("t", "", "", "", "hello"))
+
 	// Get, should not fetch, verified via the mock assertions above
 	req = TestRequest(t, RequestInfo{Key: "hello"})
 	result, meta, err = c.Get(context.Background(), "t", req)
@@ -878,8 +881,11 @@ func TestCacheGet_expireBackgroudRefreshCancel(t *testing.T) {
 	require.Equal(t, uint64(4), meta.Index)
 	require.True(t, meta.Hit)
 
-	// Sleep for the expiry
-	time.Sleep(500 * time.Millisecond)
+	// Wait for the expiry, which cancels the blocked fetch, and for the
+	// refresh to handle that fetch result. A Get racing the refresh can
+	// hang, or miss without testing that the refresh did not re-insert the
+	// entry.
+	waitForChan(t, refreshDone)
 
 	// Get, should fetch
 	req = TestRequest(t, RequestInfo{Key: "hello"})
@@ -896,6 +902,31 @@ func TestCacheGet_expireBackgroudRefreshCancel(t *testing.T) {
 	typ.AssertExpectations(t)
 }
 
+// waitForBackgroundRefresh waits until the background refresh of key is
+// fetching and returns the waiter it closes once it has handled the result.
+func waitForBackgroundRefresh(t *testing.T, c *Cache, key string) <-chan struct{} {
+	t.Helper()
+	var waiter chan struct{}
+	retry.Run(t, func(r *retry.R) {
+		c.entriesLock.RLock()
+		defer c.entriesLock.RUnlock()
+		entry, ok := c.entries[key]
+		require.True(r, ok)
+		require.True(r, entry.Fetching)
+		waiter = entry.Waiter
+	})
+	return waiter
+}
+
+func waitForChan(t *testing.T, ch <-chan struct{}) {
+	t.Helper()
+	select {
+	case <-ch:
+	case <-time.After(10 * time.Second):
+		t.Fatal("timed out waiting for the background refresh")
+	}
+}
+
 // Test that entries expire for background refresh types that return before any
 // watcher re-fetches.
 func TestCacheGet_expireBackgroudRefresh(t *testing.T) {
@@ -910,6 +941,7 @@ func TestCacheGet_expireBackgroudRefresh(t *testing.T) {
 	})
 	defer typ.AssertExpectations(t)
 	c := New(Options{})
+	defer c.Close()
 
 	// Register the type with a timeout
 	c.RegisterType("t", typ)
@@ -937,6 +969,9 @@ func TestCacheGet_expireBackgroudRefresh(t *testing.T) {
 	require.Equal(t, uint64(4), meta.Index)
 	require.False(t, meta.Hit)
 
+	key := makeEntryKey("t", "", "", "", "hello")
+	refreshDone := waitForBackgroundRefresh(t, c, key)
+
 	// Get, should not fetch, verified via the mock assertions above
 	req = TestRequest(t, RequestInfo{Key: "hello"})
 	result, meta, err = c.Get(context.Background(), "t", req)
@@ -945,11 +980,18 @@ func TestCacheGet_expireBackgroudRefresh(t *testing.T) {
 	require.Equal(t, uint64(4), meta.Index)
 	require.True(t, meta.Hit)
 
-	// Sleep for the expiry
-	time.Sleep(500 * time.Millisecond)
+	// Wait for the expiry
+	retry.Run(t, func(r *retry.R) {
+		c.entriesLock.RLock()
+		defer c.entriesLock.RUnlock()
+		_, ok := c.entries[key]
+		require.False(r, ok)
+	})
 
-	// Now (after expiry) let the fetch call return
+	// Now (after expiry) let the fetch call return, and wait for the refresh
+	// to handle its result before the next Get.
 	close(ctrlCh)
+	waitForChan(t, refreshDone)
 
 	// Get, should fetch (it didn't originally because the fetch return would
 	// re-insert the value back into the cache and make it live forever).
@@ -1267,6 +1309,8 @@ func TestCacheGet_refreshAge(t *testing.T) {
 	})
 	defer typ.AssertExpectations(t)
 	c := New(Options{})
+	// Stop the background refresh, which never expires with the default TTL.
+	defer c.Close()
 	c.RegisterType("t", typ)
 
 	// Configure the type
@@ -1294,8 +1338,11 @@ func TestCacheGet_refreshAge(t *testing.T) {
 	atomic.StoreUint64(&index, 4)
 
 	// Fetch
-	resultCh := TestCacheGetCh(t, c, "t", TestRequest(t, RequestInfo{Key: "hello"}))
-	TestCacheGetChResult(t, resultCh, 8)
+	{
+		result, _, err := c.Get(context.Background(), "t", TestRequest(t, RequestInfo{Key: "hello"}))
+		require.NoError(t, err)
+		require.Equal(t, 8, result)
+	}
 
 	{
 		// Wait a few milliseconds after initial fetch to check age is not reporting
@@ -1314,23 +1361,19 @@ func TestCacheGet_refreshAge(t *testing.T) {
 	// Now fail the next background sync
 	atomic.StoreUint64(&shouldFail, 1)
 
-	// Wait until the current request times out and starts failing. The request
-	// should take a maximum of 5ms to return but give it some headroom to allow
-	// it to finish 5ms sleep, unblock and next background request to be attemoted
-	// and fail and state updated in noisy CI... We might want to retry if this is
-	// still flaky but see if a longer wait is sufficient for now.
-	time.Sleep(50 * time.Millisecond)
-
+	// Wait until the current request returns and the next background request
+	// fails.
 	var lastAge time.Duration
-	{
-		result, meta, err := c.Get(context.Background(), "t", TestRequest(t, RequestInfo{Key: "hello"}))
-		require.NoError(t, err)
-		require.Equal(t, 8, result)
-		require.True(t, meta.Hit)
+	req := TestRequest(t, RequestInfo{Key: "hello"})
+	retry.Run(t, func(r *retry.R) {
+		result, meta, err := c.Get(context.Background(), "t", req)
+		require.NoError(r, err)
+		require.Equal(r, 8, result)
+		require.True(r, meta.Hit)
 		// Age should be non-zero since background refresh was "active"
-		require.True(t, meta.Age > 0)
+		require.True(r, meta.Age > 0)
 		lastAge = meta.Age
-	}
+	})
 	// Wait a bit longer - age should increase by at least this much
 	time.Sleep(5 * time.Millisecond)
 	{
@@ -1348,28 +1391,20 @@ func TestCacheGet_refreshAge(t *testing.T) {
 	// (won't be immediate due to backoff on the errors).
 	atomic.AddUint64(&index, 1)
 
-	t0 := time.Now()
-
-	timeout := true
-	// Allow up to 5 seconds since the error backoff is likely to have kicked in
+	// Allow up to 30 seconds since the error backoff is likely to have kicked in
 	// and causes this to take different amounts of time depending on how quickly
-	// the test thread got down here relative to the failures.
-	for attempts := 0; attempts < 50; attempts++ {
-		time.Sleep(100 * time.Millisecond)
-		result, meta, err := c.Get(context.Background(), "t", TestRequest(t, RequestInfo{Key: "hello"}))
+	// the test thread got down here relative to the failures. Each failure past
+	// the third doubles the backoff, starting at 2-4s.
+	retry.RunWith(retry.ThirtySeconds(), t, func(r *retry.R) {
+		result, meta, err := c.Get(context.Background(), "t", req)
 		// Should never error even if background is failing as we have cached value
-		require.NoError(t, err)
-		require.True(t, meta.Hit)
+		require.NoError(r, err)
+		require.True(r, meta.Hit)
 		// Got the new value!
-		if result == 10 {
-			// Age should be zero since background refresh is "active" again
-			t.Logf("Succeeded after %d attempts", attempts)
-			require.Equal(t, time.Duration(0), meta.Age)
-			timeout = false
-			break
-		}
-	}
-	require.False(t, timeout, "failed to observe update after %s", time.Since(t0))
+		require.Equal(r, 10, result)
+		// Age should be zero since background refresh is "active" again
+		require.Equal(r, time.Duration(0), meta.Age)
+	})
 }
 
 func TestCacheGet_nonRefreshAge(t *testing.T) {
