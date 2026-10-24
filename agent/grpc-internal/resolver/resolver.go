@@ -5,6 +5,7 @@ package resolver
 
 import (
 	"fmt"
+	"net"
 	"strings"
 	"sync"
 
@@ -31,6 +32,18 @@ type ServerResolverBuilder struct {
 	//
 	// this is only applicable for non-leader conn types
 	resolvers map[resolver.ClientConn]*serverResolver
+
+	// conns indexes open raw gRPC connections by server global address, so
+	// they can be closed when the server is removed. Closing only the SubConn
+	// is not enough: gRPC drains it gracefully and long-lived streams (such
+	// as streaming subscriptions) would stay on a dead server until keepalive
+	// gives up. A connection leaves the index when it is closed.
+	conns map[string]map[*trackedConn]struct{}
+
+	// connsLock guards conns. It is a leaf lock, separate from lock, so that
+	// closing a connection never waits on lock: gRPC closes connections from
+	// its own goroutines, and RemoveServer calls into gRPC with lock held.
+	connsLock sync.Mutex
 
 	// lock for all stateful fields (excludes config which is immutable).
 	lock sync.RWMutex
@@ -61,7 +74,55 @@ func NewServerResolverBuilder(cfg Config) *ServerResolverBuilder {
 		cfg:       cfg,
 		servers:   make(map[types.AreaID]map[string]*metadata.Server),
 		resolvers: make(map[resolver.ClientConn]*serverResolver),
+		conns:     make(map[string]map[*trackedConn]struct{}),
 	}
+}
+
+// TrackConn records a raw connection dialed to globalAddr, so that it is
+// closed when that server is removed. The returned connection must be used
+// in place of conn: closing it ends the tracking.
+func (s *ServerResolverBuilder) TrackConn(globalAddr string, conn net.Conn) net.Conn {
+	c := &trackedConn{Conn: conn, builder: s, globalAddr: globalAddr}
+	s.connsLock.Lock()
+	defer s.connsLock.Unlock()
+	if s.conns[globalAddr] == nil {
+		s.conns[globalAddr] = make(map[*trackedConn]struct{})
+	}
+	s.conns[globalAddr][c] = struct{}{}
+	return c
+}
+
+func (s *ServerResolverBuilder) untrackConn(c *trackedConn) {
+	s.connsLock.Lock()
+	defer s.connsLock.Unlock()
+	delete(s.conns[c.globalAddr], c)
+	if len(s.conns[c.globalAddr]) == 0 {
+		delete(s.conns, c.globalAddr)
+	}
+}
+
+// closeConns closes all the tracked connections to globalAddr.
+func (s *ServerResolverBuilder) closeConns(globalAddr string) {
+	s.connsLock.Lock()
+	conns := s.conns[globalAddr]
+	delete(s.conns, globalAddr)
+	s.connsLock.Unlock()
+
+	for c := range conns {
+		c.Conn.Close()
+	}
+}
+
+// trackedConn is a connection recorded by TrackConn.
+type trackedConn struct {
+	net.Conn
+	builder    *ServerResolverBuilder
+	globalAddr string
+}
+
+func (c *trackedConn) Close() error {
+	c.builder.untrackConn(c)
+	return c.Conn.Close()
 }
 
 // ServerForGlobalAddr returns server metadata for a server with the specified globally unique address.
@@ -192,6 +253,7 @@ func (s *ServerResolverBuilder) RemoveServer(areaID types.AreaID, server *metada
 		return // already gone
 	}
 
+	stored := areaServers[uniqueID(server)]
 	delete(areaServers, uniqueID(server))
 	if len(areaServers) == 0 {
 		delete(s.servers, areaID)
@@ -202,6 +264,10 @@ func (s *ServerResolverBuilder) RemoveServer(areaID types.AreaID, server *metada
 		if resolver.datacenter == server.Datacenter {
 			resolver.updateAddrs(addrs)
 		}
+	}
+
+	if stored != nil && stored.Addr != nil {
+		s.closeConns(DCPrefix(stored.Datacenter, stored.Addr.String()))
 	}
 }
 
