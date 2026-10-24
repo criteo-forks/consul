@@ -325,6 +325,11 @@ func newDialer(cfg ClientConnPoolConfig, gwResolverDep *gatewayResolverDep) func
 		if err != nil {
 			return nil, err
 		}
+		if t, ok := cfg.Servers.(interface {
+			TrackConn(string, net.Conn) net.Conn
+		}); ok {
+			conn = t.TrackConn(globalAddr, conn)
+		}
 
 		if server.UseTLS && cfg.UseTLSForDC(server.Datacenter) {
 			if cfg.TLSWrapper == nil {

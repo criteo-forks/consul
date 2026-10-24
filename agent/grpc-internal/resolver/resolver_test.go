@@ -151,6 +151,49 @@ func TestServerResolverBuilder(t *testing.T) {
 	}
 }
 
+func TestServerResolverBuilder_RemoveServerClosesTrackedConns(t *testing.T) {
+	rs := NewServerResolverBuilder(newConfig(t, "dc1", "client"))
+	gone := newServerMeta("s1", "dc1", "10.0.0.1", false)
+	kept := newServerMeta("s2", "dc1", "10.0.0.2", false)
+	rs.AddServer(types.AreaLAN, gone)
+	rs.AddServer(types.AreaLAN, kept)
+
+	goneConn, goneRemote := net.Pipe()
+	keptConn, keptRemote := net.Pipe()
+	t.Cleanup(func() { keptConn.Close(); keptRemote.Close(); goneRemote.Close() })
+	rs.TrackConn(DCPrefix("dc1", gone.Addr.String()), goneConn)
+	kc := rs.TrackConn(DCPrefix("dc1", kept.Addr.String()), keptConn)
+
+	// Remove it through a stub without Addr, as the router may do.
+	rs.RemoveServer(types.AreaLAN, newServerMeta("s1", "dc1", "", false))
+
+	_, err := goneRemote.Read(make([]byte, 1))
+	require.Error(t, err, "connection to the removed server must be closed")
+
+	go keptRemote.Read(make([]byte, 1))
+	_, err = kc.Write([]byte{0})
+	require.NoError(t, err, "connections to other servers stay open")
+}
+
+func TestServerResolverBuilder_ClosedConnsAreUntracked(t *testing.T) {
+	rs := NewServerResolverBuilder(newConfig(t, "dc1", "client"))
+	addr := DCPrefix("dc1", "10.0.0.1:8300")
+
+	a, aRemote := net.Pipe()
+	b, bRemote := net.Pipe()
+	t.Cleanup(func() { aRemote.Close(); bRemote.Close() })
+	ta := rs.TrackConn(addr, a)
+	tb := rs.TrackConn(addr, b)
+
+	require.NoError(t, ta.Close())
+	require.Len(t, rs.conns[addr], 1)
+	require.NoError(t, tb.Close())
+	require.Empty(t, rs.conns, "no entry left once all connections are closed")
+
+	_, err := aRemote.Read(make([]byte, 1))
+	require.Error(t, err, "closing the tracked connection closes the raw one")
+}
+
 func newServerMeta(name, dc, ip string, wan bool) *metadata.Server {
 	fullname := name
 	if wan {
