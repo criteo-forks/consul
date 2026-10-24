@@ -29,6 +29,7 @@ import (
 	"github.com/hashicorp/consul/agent/rpc/peering"
 	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/consul/internal/resource"
+	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/consul/logging"
 	"github.com/hashicorp/consul/proto-public/pbresource"
 	"github.com/hashicorp/consul/proto/private/pbsubscribe"
@@ -462,8 +463,10 @@ func (s *Server) registerOperatorServer(config *Config, deps Deps, registrars ..
 }
 
 func (s *Server) registerStreamSubscriptionServer(deps Deps, registrars ...grpc.ServiceRegistrar) error {
+	leaderContact := subscribe.NewLeaderContactWatcher(s.IsLeader, s.raft.LastContact)
+	go leaderContact.Run(&lib.StopChannelContext{StopCh: s.shutdownCh})
 	srv := subscribe.NewServer(
-		&subscribeBackend{srv: s, connPool: deps.GRPCConnPool},
+		&subscribeBackend{srv: s, connPool: deps.GRPCConnPool, leaderContact: leaderContact},
 		s.loggers.Named(logging.GRPCAPI).Named("subscription"),
 	)
 

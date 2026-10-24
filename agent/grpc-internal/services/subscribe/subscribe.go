@@ -4,6 +4,7 @@
 package subscribe
 
 import (
+	"context"
 	"errors"
 
 	"github.com/hashicorp/go-hclog"
@@ -42,6 +43,14 @@ type Backend interface {
 	Subscribe(req *stream.SubscribeRequest) (*stream.Subscription, error)
 }
 
+// leaderContacter is implemented by backends that can tell whether this
+// server's state is fresh.
+type leaderContacter interface {
+	// LeaderContact returns a context that is canceled once this server has
+	// gone too long without contact with the raft leader.
+	LeaderContact() context.Context
+}
+
 func (h *Server) Subscribe(req *pbsubscribe.SubscribeRequest, serverStream pbsubscribe.StateChangeSubscription_SubscribeServer) error {
 	logger := newLoggerForRequest(h.Logger, req)
 	handled, err := h.Backend.Forward(req, forwardToDC(req, serverStream, logger))
@@ -63,13 +72,26 @@ func (h *Server) Subscribe(req *pbsubscribe.SubscribeRequest, serverStream pbsub
 		return status.Error(codes.InvalidArgument, err.Error())
 	}
 
+	ctx := serverStream.Context()
+	if lc, ok := h.Backend.(leaderContacter); ok {
+		fresh := lc.LeaderContact()
+		if fresh.Err() != nil {
+			return status.Error(codes.Unavailable, errNoLeaderContact.Error())
+		}
+		var cancel context.CancelCauseFunc
+		ctx, cancel = context.WithCancelCause(ctx)
+		defer cancel(nil)
+		// Runs nothing until fresh is canceled: no goroutine per stream.
+		stop := context.AfterFunc(fresh, func() { cancel(errNoLeaderContact) })
+		defer stop()
+	}
+
 	sub, err := h.Backend.Subscribe(subReq)
 	if err != nil {
 		return err
 	}
 	defer sub.Unsubscribe()
 
-	ctx := serverStream.Context()
 	elog := &eventLogger{logger: logger}
 	for {
 		event, err := sub.Next(ctx)
@@ -85,6 +107,8 @@ func (h *Server) Subscribe(req *pbsubscribe.SubscribeRequest, serverStream pbsub
 			}
 			// Otherwise, abort the stream so the client re-subscribes.
 			return status.Error(codes.Aborted, err.Error())
+		case errors.Is(context.Cause(ctx), errNoLeaderContact):
+			return status.Error(codes.Unavailable, errNoLeaderContact.Error())
 		case err != nil:
 			return err
 		}

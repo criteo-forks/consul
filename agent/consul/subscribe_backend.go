@@ -4,6 +4,8 @@
 package consul
 
 import (
+	"context"
+
 	"google.golang.org/grpc"
 
 	"github.com/hashicorp/consul/acl"
@@ -13,8 +15,9 @@ import (
 )
 
 type subscribeBackend struct {
-	srv      *Server
-	connPool GRPCClientConner
+	srv           *Server
+	connPool      GRPCClientConner
+	leaderContact *subscribe.LeaderContactWatcher
 }
 
 // TODO: refactor Resolve methods to an ACLBackend that can be used by all
@@ -35,4 +38,8 @@ func (s subscribeBackend) Forward(info structs.RPCInfo, f func(*grpc.ClientConn)
 
 func (s subscribeBackend) Subscribe(req *stream.SubscribeRequest) (*stream.Subscription, error) {
 	return s.srv.publisher.Subscribe(req)
+}
+
+func (s subscribeBackend) LeaderContact() context.Context {
+	return s.leaderContact.Context()
 }
