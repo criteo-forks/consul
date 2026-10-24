@@ -2013,6 +2013,28 @@ func TestStateStore_EnsureService_connectProxy(t *testing.T) {
 	assert.Equal(t, &expect1, out.Services["connect-proxy"])
 }
 
+// Moving an instance ID to another service name must release blocking
+// queries on the old name: its index has to move past the client's.
+func TestStateStore_EnsureService_RenameBumpsOldServiceIndex(t *testing.T) {
+	s := testStateStore(t)
+	testRegisterNode(t, s, 1, "node1")
+	require.NoError(t, s.EnsureService(2, "node1", &structs.NodeService{ID: "i1", Service: "old"}))
+	require.NoError(t, s.EnsureService(3, "node1", &structs.NodeService{ID: "i2", Service: "old"}))
+
+	ws := memdb.NewWatchSet()
+	idx, _, err := s.CheckServiceNodes(ws, "old", nil, "")
+	require.NoError(t, err)
+	require.Equal(t, uint64(3), idx)
+
+	require.NoError(t, s.EnsureService(4, "node1", &structs.NodeService{ID: "i1", Service: "new"}))
+	require.True(t, watchFired(ws))
+
+	idx, nodes, err := s.CheckServiceNodes(nil, "old", nil, "")
+	require.NoError(t, err)
+	require.Len(t, nodes, 1)
+	require.Equal(t, uint64(4), idx)
+}
+
 func TestStateStore_EnsureService_VirtualIPAssign(t *testing.T) {
 	netutil.GetAgentBindAddrFunc = netutil.GetMockGetAgentBindAddrFunc("0.0.0.0")
 	s := testStateStore(t)
