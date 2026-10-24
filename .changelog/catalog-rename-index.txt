@@ -1,0 +1,3 @@
+```release-note:bug
+catalog: Wake blocking queries on a service's old name when one of its instance IDs is re-registered under another service name, instead of leaving them stale until their wait times out.
+```

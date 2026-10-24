@@ -988,6 +988,16 @@ func ensureServiceTxn(tx WriteTxn, idx uint64, node string, preserveIndexes bool
 		}
 	}
 
+	// The instance is moving to another service name: release blocking
+	// queries on the old name too, since it just lost an instance.
+	if existing != nil {
+		if old := existing.(*structs.ServiceNode); old.ServiceName != entry.ServiceName {
+			if err := catalogUpdateServiceIndexes(tx, idx, old.ServiceName, &old.EnterpriseMeta, old.PeerName); err != nil {
+				return fmt.Errorf("failed updating service indexes: %w", err)
+			}
+		}
+	}
+
 	// Insert the service and update the index
 	return catalogInsertService(tx, entry)
 }
