@@ -69,6 +69,9 @@ type materializer struct {
 	view     View
 	updateCh chan struct{}
 	err      error
+	// resetting means the stream restarts from a new snapshot. Until that
+	// snapshot reaches updateView, queries keep getting the previous view.
+	resetting bool
 }
 
 func newMaterializer(logger hclog.Logger, view View, waiter *retry.Waiter) *materializer {
@@ -144,6 +147,9 @@ func (m *materializer) currentIndex() uint64 {
 
 	m.lock.Lock()
 	resp = m.index
+	if m.resetting {
+		resp = 0
+	}
 	m.lock.Unlock()
 
 	return resp
@@ -157,13 +163,14 @@ func (m *materializer) notifyUpdateLocked(err error) {
 	m.updateCh = make(chan struct{})
 }
 
-// reset clears the state ready to start a new stream from scratch.
+// reset prepares for a new stream from scratch. The view is only replaced
+// when the new snapshot arrives, so queries that time out in between get the
+// previous view rather than an empty one.
 func (m *materializer) reset() {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	m.view.Reset()
-	m.index = 0
+	m.resetting = true
 }
 
 // updateView updates the view from a sequence of events and stores
@@ -172,6 +179,12 @@ func (m *materializer) updateView(events []*pbsubscribe.Event, index uint64) err
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
+	if m.resetting {
+		// The first update after a reset is the full new snapshot.
+		m.view.Reset()
+		m.index = 0
+		m.resetting = false
+	}
 	if err := m.view.Update(events); err != nil {
 		return err
 	}
