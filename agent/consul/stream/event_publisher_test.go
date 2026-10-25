@@ -6,6 +6,8 @@ package stream
 import (
 	"context"
 	"fmt"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -705,4 +707,52 @@ func TestEventPublisher_SnapshotIndex0(t *testing.T) {
 
 	// Even though the snapshot handler returned 0, the subscriber shouldn't see it.
 	require.Equal(t, uint64(1), event.Index)
+}
+
+func TestEventPublisher_Subscribe_BuildsSnapshotWithoutBlockingPublish(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	publisher := NewEventPublisher(time.Second)
+	registerTestSnapshotHandlers(t, publisher)
+	go publisher.Run(ctx)
+
+	sub, err := publisher.Subscribe(&SubscribeRequest{Topic: testTopic, Subject: StringSubject("sub-key")})
+	require.NoError(t, err)
+	defer sub.Unsubscribe()
+	eventCh := runSubscription(ctx, sub)
+	require.Equal(t, testSnapshotEvent, getNextEvent(t, eventCh))
+	require.True(t, getNextEvent(t, eventCh).IsEndOfSnapshot())
+
+	// A snapshot handler that stays in its handler until released.
+	slowTopic := intTopic(998)
+	var builds atomic.Int32
+	inHandler, release := make(chan struct{}), make(chan struct{})
+	var releaseOnce sync.Once
+	unblock := func() { releaseOnce.Do(func() { close(release) }) }
+	defer unblock() // before the Unsubscribes, which take the publisher lock
+	require.NoError(t, publisher.RegisterHandler(slowTopic, func(SubscribeRequest, SnapshotAppender) (uint64, error) {
+		if builds.Add(1) == 1 {
+			close(inHandler)
+		}
+		<-release
+		return 1, nil
+	}, false))
+	slowReq := func() *SubscribeRequest {
+		return &SubscribeRequest{Topic: slowTopic, Subject: StringSubject("slow-key")}
+	}
+	go publisher.Subscribe(slowReq())
+	<-inHandler
+
+	// Events are still delivered while it builds...
+	publisher.Publish([]Event{{Topic: testTopic, Payload: simplePayload{key: "sub-key", value: "published"}}})
+	require.Equal(t, "published", getNextEvent(t, eventCh).Payload.(simplePayload).value)
+
+	// ...and a second subscriber follows the same snapshot instead of building another.
+	second, err := publisher.Subscribe(slowReq())
+	require.NoError(t, err)
+	defer second.Unsubscribe()
+	unblock()
+	require.True(t, getNextEvent(t, runSubscription(ctx, second)).IsEndOfSnapshot())
+	require.Equal(t, int32(1), builds.Load())
 }

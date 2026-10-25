@@ -341,28 +341,50 @@ func (e *EventPublisher) Subscribe(req *SubscribeRequest) (*Subscription, error)
 		return e.subscriptions.add(req, subscriptionHead, freeBuf), nil
 	}
 
-	snapFromCache := e.getCachedSnapshotLocked(req)
-	if snapFromCache == nil {
-		snap := newEventSnapshot()
-		snap.appendAndSplice(*req, handler, topicHead)
+	// A missing snapshot is cached before it is built, so that subscribers
+	// arriving meanwhile follow the same one.
+	snap := e.getCachedSnapshotLocked(req)
+	build := snap == nil
+	if build {
+		snap = newEventSnapshot()
 		e.setCachedSnapshotLocked(req, snap)
-		snapFromCache = snap
 	}
 
-	// If the request.Index is 0 the client has no view, send a full snapshot.
+	var sub *Subscription
 	if req.Index == 0 {
-		return e.subscriptions.add(req, snapFromCache.First, freeBuf), nil
+		// If the request.Index is 0 the client has no view, send a full snapshot.
+		sub = e.subscriptions.add(req, snap.First, freeBuf)
+	} else {
+		// otherwise the request has an Index, the client view is stale and must be reset
+		// with a NewSnapshotToFollow event.
+		result := newEventSnapshot()
+		result.buffer.Append([]Event{{
+			Topic:   req.Topic,
+			Payload: newSnapshotToFollow{},
+		}})
+		result.buffer.AppendItem(snap.First)
+		sub = e.subscriptions.add(req, result.First, freeBuf)
 	}
 
-	// otherwise the request has an Index, the client view is stale and must be reset
-	// with a NewSnapshotToFollow event.
-	result := newEventSnapshot()
-	result.buffer.Append([]Event{{
-		Topic:   req.Topic,
-		Payload: newSnapshotToFollow{},
-	}})
-	result.buffer.AppendItem(snapFromCache.First)
-	return e.subscriptions.add(req, result.First, freeBuf), nil
+	if build {
+		// Build without e.lock: the snapshot handler reads the state store,
+		// and holding e.lock meanwhile would block every publish, and
+		// deadlock with FSM.Restore, which refreshes the topics while
+		// holding its state lock. The subscription is already registered, so
+		// a refresh during the build closes it.
+		e.lock.Unlock()
+		defer e.lock.Lock()
+		built := false
+		defer func() {
+			if !built {
+				// The handler panicked: fail the subscribers following this snapshot.
+				snap.buffer.AppendItem(&bufferItem{Err: fmt.Errorf("building the %v snapshot failed", req.Topic)})
+			}
+		}()
+		snap.appendAndSplice(*req, handler, topicHead)
+		built = true
+	}
+	return sub, nil
 }
 
 func (s *subscriptions) add(req *SubscribeRequest, head *bufferItem, freeBuf func()) *Subscription {
