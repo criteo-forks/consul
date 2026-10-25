@@ -109,6 +109,15 @@ func TestClient_ServiceNodes_BackendRouting(t *testing.T) {
 			},
 			expected: useRPC,
 		},
+		{
+			name: "rpc if consistent",
+			req: structs.ServiceSpecificRequest{
+				Datacenter:   "dc1",
+				ServiceName:  "web1",
+				QueryOptions: structs.QueryOptions{MinQueryIndex: 22, RequireConsistent: true},
+			},
+			expected: useRPC,
+		},
 	}
 
 	for _, tc := range testCases {

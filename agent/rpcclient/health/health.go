@@ -102,6 +102,9 @@ func (c *Client) Notify(
 func (c *Client) useStreaming(req structs.ServiceSpecificRequest) bool {
 	return c.UseStreamingBackend &&
 		!req.Ingress &&
+		// A streaming view is a stale read of the server it subscribed to; a
+		// consistent read must go to the leader.
+		!req.RequireConsistent &&
 		// Streaming is incompatible with NearestN queries (due to lack of ordering),
 		// so we can only use it if the NearestN would never work (Node == "")
 		// or if we explicitly say to ignore the Node field for queries (agentless xDS).
